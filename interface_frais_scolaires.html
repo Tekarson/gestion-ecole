@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Espace Parent — Frais scolaires</title>
+<style>
+:root{--navy:#17324d;--blue:#2563eb;--bg:#f5f7fb;--text:#172033;--muted:#667085;--line:#e6eaf0;--green:#198754;--orange:#d97706;--red:#dc3545;--white:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+.app{display:flex;min-height:100vh}.sidebar{width:245px;background:var(--navy);color:#fff;padding:24px 16px;position:fixed;height:100vh}
+.logo{font-size:19px;font-weight:800;padding:8px 10px 28px}.logo span{display:block;font-size:11px;font-weight:500;opacity:.7;margin-top:5px}
+.nav a{display:block;color:#dce7f2;text-decoration:none;padding:12px 13px;border-radius:9px;margin:5px 0;font-size:14px}.nav a.active,.nav a:hover{background:rgba(255,255,255,.12);color:#fff}
+.user{position:absolute;bottom:20px;left:16px;right:16px;border-top:1px solid rgba(255,255,255,.15);padding:16px 10px;font-size:13px}.user b{display:block}.user small{opacity:.65}
+.main{margin-left:245px;width:calc(100% - 245px)}header{height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 34px;position:sticky;top:0;z-index:2}
+header h1{font-size:18px;margin:0}.school{font-size:12px;color:var(--muted)}
+.content{padding:30px 34px;max-width:1400px}.welcome{display:flex;justify-content:space-between;align-items:end;margin-bottom:22px}.welcome h2{margin:0 0 6px;font-size:25px}.welcome p{margin:0;color:var(--muted);font-size:14px}
+.btn{border:0;border-radius:8px;padding:10px 15px;font-weight:700;cursor:pointer;font-size:13px}.primary{background:var(--blue);color:#fff}.secondary{background:#eef3ff;color:#2353b7}.danger{background:#fff0f0;color:#b42318}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px}.metric{font-size:25px;font-weight:800;margin:7px 0}.label{font-size:12px;color:var(--muted)}.green{color:var(--green)}.orange{color:var(--orange)}
+.section-title{font-size:16px;margin:28px 0 12px}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}.panel-head{padding:17px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.panel-head b{font-size:14px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:13px 15px;border-bottom:1px solid var(--line);font-size:13px}th{font-size:11px;text-transform:uppercase;color:var(--muted);background:#fafbfc}tr:last-child td{border-bottom:0}
+.badge{padding:5px 8px;border-radius:20px;font-size:11px;font-weight:700}.paid{background:#e9f7ef;color:#18794e}.pending{background:#fff4df;color:#a15c00}.upcoming{background:#eef1f5;color:#667085}
+.family{display:grid;grid-template-columns:1.4fr .8fr;gap:15px}.family-note{padding:18px;background:#f7f9fc;border-radius:10px;margin:14px}.discount{font-size:28px;font-weight:800;color:var(--blue)}
+.progress{height:8px;background:#e9edf3;border-radius:10px;overflow:hidden;margin-top:9px}.bar{height:100%;background:var(--blue);width:63%}
+.child{cursor:pointer}.child:hover{background:#f8faff}
+.footer-note{font-size:11px;color:var(--muted);margin-top:18px}
+.modal{display:none;position:fixed;inset:0;background:rgba(13,26,40,.45);z-index:10;align-items:center;justify-content:center;padding:20px}.modal.show{display:flex}.dialog{background:#fff;border-radius:14px;width:min(620px,100%);padding:24px}.dialog h3{margin:0 0 5px}.dialog p{color:var(--muted);font-size:13px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{margin:12px 0}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}.field input,.field select{width:100%;padding:11px;border:1px solid #d9dee7;border-radius:8px}.total{background:#f6f8fb;padding:14px;border-radius:9px;display:flex;justify-content:space-between;font-weight:800;margin:15px 0}.actions{display:flex;justify-content:flex-end;gap:8px}
+@media(max-width:900px){.sidebar{width:70px}.logo span,.nav a span,.user{display:none}.logo{font-size:0}.logo:before{content:"ES";font-size:18px}.main{margin-left:70px;width:calc(100% - 70px)}.cards{grid-template-columns:repeat(2,1fr)}.family{grid-template-columns:1fr}.content{padding:20px}}
+@media(max-width:600px){.cards{grid-template-columns:1fr}.main{margin-left:0;width:100%}.sidebar{display:none}header{padding:0 18px}.content{padding:18px}.welcome{display:block}.welcome .btn{margin-top:12px}table{min-width:700px}.panel{overflow:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="logo">ÉCOLE<span>PORTAIL FAMILLE</span></div>
+  <nav class="nav">
+    <a class="active" href="#"><span>⌂ &nbsp; Tableau de bord</span></a>
+    <a href="#"><span>👨‍👩‍👧 &nbsp; Ma famille</span></a>
+    <a href="#"><span>💳 &nbsp; Frais & paiements</span></a>
+    <a href="#"><span>🧾 &nbsp; Reçus</span></a>
+    <a href="#"><span>🔔 &nbsp; Notifications</span></a>
+  </nav>
+  <div class="user"><b>M. Jean K.</b><small>Compte parent</small></div>
+</aside>
+
+<main class="main">
+<header><div><h1>Espace Parent</h1><div class="school">Année scolaire 2026–2027</div></div><button class="btn secondary">Mon profil</button></header>
+<section class="content">
+  <div class="welcome">
+    <div><h2>Bonjour, M. Jean K.</h2><p>Voici la situation financière de votre famille.</p></div>
+    <button class="btn primary" onclick="openPay('Enfant 1','Tranche 2',450)">+ Effectuer un paiement</button>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="label">Enfants inscrits</div><div class="metric">4</div><div class="label">dans l'établissement</div></div>
+    <div class="card"><div class="label">Total net à payer</div><div class="metric">$ 12 850</div><div class="label">après avantage familial</div></div>
+    <div class="card"><div class="label">Total déjà payé</div><div class="metric green">$ 8 100</div><div class="label">paiements confirmés</div></div>
+    <div class="card"><div class="label">Solde familial</div><div class="metric orange">$ 4 750</div><div class="label">reste à payer</div></div>
+  </div>
+
+  <h3 class="section-title">Mes enfants</h3>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Élève</th><th>Classe</th><th>Minerval</th><th>Livres</th><th>Statut inscription</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr class="child"><td><b>Enfant 1</b><br><small class="label">MAT-26001</small></td><td>6e</td><td>$ 3 500</td><td>$ 400</td><td><span class="badge paid">Place confirmée</span></td><td><button class="btn secondary" onclick="openPay('Enfant 1','Tranche 2',450)">Payer</button></td></tr>
+        <tr><td><b>Enfant 2</b><br><small class="label">MAT-26002</small></td><td>CM2</td><td>$ 3 000</td><td>$ 420</td><td><span class="badge paid">Place confirmée</span></td><td><button class="btn secondary" onclick="openPay('Enfant 2','Tranche 2',900)">Payer</button></td></tr>
+        <tr><td><b>Enfant 3</b><br><small class="label">MAT-26003</small></td><td>CE2</td><td>$ 3 000</td><td>$ 420</td><td><span class="badge paid">Place confirmée</span></td><td><button class="btn secondary" onclick="openPay('Enfant 3','Tranche 2',900)">Payer</button></td></tr>
+        <tr><td><b>Enfant 4</b><br><small class="label">MAT-26004</small></td><td>CP</td><td>$ 2 400</td><td>$ 200</td><td><span class="badge paid">Place confirmée</span></td><td><button class="btn secondary" onclick="openPay('Enfant 4','Tranche 2',700)">Payer</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="family">
+    <div>
+      <h3 class="section-title">Situation du minerval</h3>
+      <div class="panel">
+        <table>
+          <thead><tr><th>Tranche</th><th>Échéance</th><th>Montant</th><th>Statut</th></tr></thead>
+          <tbody>
+            <tr><td><b>Tranche 1</b></td><td>À l'inscription</td><td>$ 1 700</td><td><span class="badge paid">Payée</span></td></tr>
+            <tr><td><b>Tranche 2</b></td><td>20 août – 4 déc. 2026</td><td>$ 950</td><td><span class="badge pending">Partiellement payée</span></td></tr>
+            <tr><td><b>Tranche 3</b></td><td>6 déc. 2026 – 16 mars 2027</td><td>$ 850</td><td><span class="badge upcoming">À venir</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h3 class="section-title">Avantage familial</h3>
+      <div class="panel">
+        <div class="family-note">
+          <div class="label">Nombre d'enfants</div><div class="metric">4 enfants</div>
+          <div class="label">Réduction appliquée au minerval</div>
+          <div class="discount">– $ 500</div>
+          <div class="footer-note">Les réductions familiales concernent exclusivement le minerval.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="section-title">Frais à l'inscription</h3>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Frais</th><th>Montant par élève</th><th>Règle</th></tr></thead>
+      <tbody>
+        <tr><td>Frais d'inscription</td><td>$ 200</td><td>Payable à l'inscription</td></tr>
+        <tr><td>Uniforme</td><td>$ 40</td><td>Payable à l'inscription</td></tr>
+        <tr><td>Assurance</td><td>$ 20</td><td>Payable à l'inscription</td></tr>
+        <tr><td>Frais divers</td><td>$ 150</td><td>Payable à l'inscription</td></tr>
+        <tr><td><b>Total frais fixes</b></td><td><b>$ 410</b></td><td>Hors minerval et livres</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="section-title">Derniers paiements</h3>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Date</th><th>Élève</th><th>Nature</th><th>Montant</th><th>Référence</th><th>Statut</th></tr></thead>
+      <tbody>
+        <tr><td>25/09/2026</td><td>Enfant 1</td><td>Tranche 2</td><td>$ 500</td><td>PAY-00421</td><td><span class="badge paid">Confirmé</span></td></tr>
+        <tr><td>20/08/2026</td><td>Enfant 2</td><td>Tranche 1</td><td>$ 1 300</td><td>PAY-00125</td><td><span class="badge paid">Confirmé</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+</main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="dialog">
+    <h3>Effectuer un paiement</h3><p id="payDesc">Paiement scolaire</p>
+    <div class="row">
+      <div class="field"><label>Élève</label><input id="student" readonly></div>
+      <div class="field"><label>Nature</label><input id="nature" readonly></div>
+    </div>
+    <div class="field"><label>Montant restant</label><input id="remaining" readonly></div>
+    <div class="field"><label>Montant à payer ($)</label><input id="amount" type="number" min="1"></div>
+    <div class="field"><label>Mode de paiement</label><select><option>Mobile Money</option><option>Carte bancaire</option><option>Virement bancaire</option><option>Paiement au guichet</option></select></div>
+    <div class="total"><span>Total du paiement</span><span id="total">$ 0</span></div>
+    <div class="actions"><button class="btn secondary" onclick="closePay()">Annuler</button><button class="btn primary" onclick="confirmPay()">Confirmer le paiement</button></div>
+  </div>
+</div>
+<script>
+function openPay(student,nature,remaining){document.getElementById('modal').classList.add('show');document.getElementById('student').value=student;document.getElementById('nature').value=nature;document.getElementById('remaining').value='$ '+remaining.toLocaleString();document.getElementById('amount').value=remaining;document.getElementById('total').textContent='$ '+remaining.toLocaleString()}
+function closePay(){document.getElementById('modal').classList.remove('show')}
+document.getElementById('amount').addEventListener('input',e=>document.getElementById('total').textContent='$ '+(Number(e.target.value)||0).toLocaleString())
+function confirmPay(){alert('Paiement simulé avec succès. Dans une version connectée, cette action déclencherait le processus de paiement et la génération du reçu.');closePay()}
+</script>
+</body>
+</html>

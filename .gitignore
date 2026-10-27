@@ -1,0 +1,34 @@
+# deps
+node_modules
+.bun
+.pnp.*
+
+# build
+dist
+dist-ssr
+*.local
+
+# env
+.env.local
+.env.*.local
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# lovable
+.lovable/
+
+# backend
+backend/vendor/
+backend/.env
+backend/storage/
+backend/database/*.sqlite
+*.log
