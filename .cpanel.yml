@@ -1,0 +1,7 @@
+---
+deployment:
+  tasks:
+    - export REPOPATH=/home/unikinso/public_html/gestion_ecole
+    - /bin/chmod 755 $REPOPATH
+    - /bin/mkdir -p $REPOPATH/backend/storage/framework/cache/data $REPOPATH/backend/storage/framework/sessions $REPOPATH/backend/storage/framework/views $REPOPATH/backend/storage/logs $REPOPATH/backend/storage/app/public
+    - /bin/chmod -R 775 $REPOPATH/backend/storage $REPOPATH/backend/bootstrap/cache
