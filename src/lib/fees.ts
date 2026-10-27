@@ -30,9 +30,13 @@ export interface ClassRow {
   sort_order: number
 }
 
+/** inscription = ouverture de dossier, fixed = frais connexes, other = autres frais. */
+export type FeeCategory = 'inscription' | 'fixed' | 'other'
+
 export interface FeeControl {
   key: string
   label: string
+  category?: FeeCategory
   amount: number
   sort_order: number
 }
@@ -93,6 +97,8 @@ export interface StudentFinance {
   balance: number
   fixedDue: number
   fixedPaid: number
+  otherDue: number
+  otherPaid: number
   booksDue: number
   booksPaid: number
   minervalDue: number
@@ -103,6 +109,8 @@ export interface StudentFinance {
   lines: FeeLine[]
   placeConfirmed: boolean
   exempt: boolean
+  teacherChild?: boolean
+  entitled?: boolean
   childDiscount?: number
   childNet?: number
 }
@@ -155,6 +163,7 @@ export interface FamilyFinance {
   minervalGross: number
   minervalNet: number
   fixedGross: number
+  otherGross: number
   booksGross: number
   enrollmentGross: number
   children: FamilyChild[]

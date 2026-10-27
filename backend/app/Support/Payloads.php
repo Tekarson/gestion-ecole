@@ -100,6 +100,7 @@ class Payloads
         return [
             'key' => $fee->label,
             'label' => self::feeLabel($fee->label),
+            'category' => $fee->category,
             'amount' => (float) $fee->amount,
             'sort_order' => $sortOrder,
         ];
@@ -137,6 +138,8 @@ class Payloads
             'class_id' => (string) $student->class_id,
             'school_year' => SchoolContext::activeYear(),
             'photo_url' => $student->photo,
+            'is_teacher_child' => (bool) $student->is_teacher_child,
+            'is_entitled' => (bool) $student->is_entitled,
             'created_at' => $student->created_at?->toIso8601String(),
         ];
     }
@@ -154,6 +157,8 @@ class Payloads
             'photo_url' => $student->photo,
             'status' => $student->status,
             'is_exempt' => (bool) $student->is_exempt,
+            'is_teacher_child' => (bool) $student->is_teacher_child,
+            'is_entitled' => (bool) $student->is_entitled,
             'class_id' => $student->class_id !== null ? (string) $student->class_id : null,
             'class_name' => $student->schoolClass?->name,
             'section' => $student->schoolClass?->level,
@@ -218,10 +223,16 @@ class Payloads
     public static function feeLabel(string $nature): string
     {
         return match ($nature) {
-            'inscription' => "Frais d'inscription",
+            'inscription' => "Frais d'ouverture de dossier",
             'uniforme' => 'Uniforme',
             'assurance' => 'Assurance scolaire',
             'divers' => 'Frais divers',
+            'gymnastique' => 'Gymnastique',
+            'journal_classe' => 'Journal de classe',
+            'uniforme_plus' => 'Uniforme de plus',
+            'attestation_frequentation' => 'Attestation de fréquentation',
+            'camp_ete' => "Frais de camp d'été",
+            'examen' => 'Participation aux examens',
             'livres' => 'Livres',
             'tranche1' => 'Tranche 1 — Minerval',
             'tranche2' => 'Tranche 2 — Minerval',

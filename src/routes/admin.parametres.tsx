@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarRange, CalendarX2, Plus, Save, Settings2, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { settingsQuery, useCloseYearMutation, useUpdateSettingsMutation, whoamiQuery } from '@/lib/data'
-import type { SettingsClassInput, SettingsInput } from '@/lib/fees'
+import type { FeeCategory, SettingsClassInput, SettingsInput } from '@/lib/fees'
 import { can } from '@/lib/fees'
 import { Button, Card, Input, SectionTitle, Select } from '@/components/ui'
 
@@ -15,9 +15,28 @@ export const Route = createFileRoute('/admin/parametres')({
 interface FeeRow {
   key: string
   label: string
+  category?: FeeCategory
   amount: number
   sort_order: number
 }
+
+const FEE_GROUPS: { title: string; hint: string; match: (f: FeeRow) => boolean }[] = [
+  {
+    title: 'Frais d’ouverture de dossier',
+    hint: 'Non dus pour les enfants des enseignants.',
+    match: (f) => f.category === 'inscription',
+  },
+  {
+    title: 'Frais connexes',
+    hint: 'Dus par tous les élèves, y compris les ayants droit.',
+    match: (f) => f.category !== 'inscription' && f.category !== 'other',
+  },
+  {
+    title: 'Autres frais',
+    hint: 'Camp d’été, participation aux examens. Un montant à 0 masque le frais.',
+    match: (f) => f.category === 'other',
+  },
+]
 
 const TERM_LABELS: Record<number, string> = {
   1: 'Trimestre 1',
@@ -201,31 +220,36 @@ function AdminSettings() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card className="p-5">
           <div className="mb-4 flex items-center gap-2 font-semibold text-slate-900">
-            <Settings2 className="size-4 text-brand-600" /> Frais connexes
+            <Settings2 className="size-4 text-brand-600" /> Frais (en $)
           </div>
-          <div className="space-y-3">
-            <div className="grid grid-cols-[1fr_120px_120px] gap-2 px-1 text-xs uppercase tracking-wider text-slate-500">
-              <span>Intitulé</span>
-              <span>Montant</span>
-              <span>Ordre</span>
-            </div>
-            {fees.map((f, i) => (
-              <div key={f.key} className="grid grid-cols-[1fr_120px_120px] items-center gap-2">
-                <Input value={f.label} onChange={(e) => setFee(i, { label: e.target.value })} />
-                <Input
-                  type="number"
-                  min={0}
-                  value={f.amount || ''}
-                  onChange={(e) => setFee(i, { amount: Number(e.target.value) })}
-                />
-                <Input
-                  type="number"
-                  min={0}
-                  value={f.sort_order || ''}
-                  onChange={(e) => setFee(i, { sort_order: Number(e.target.value) })}
-                />
-              </div>
-            ))}
+          <div className="space-y-5">
+            {FEE_GROUPS.map((group) => {
+              const rows = fees.map((f, i) => ({ f, i })).filter(({ f }) => group.match(f))
+              if (rows.length === 0) return null
+              return (
+                <div key={group.title} className="space-y-2">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800">{group.title}</div>
+                    <div className="text-xs text-slate-500">{group.hint}</div>
+                  </div>
+                  <div className="grid grid-cols-[1fr_120px] gap-2 px-1 text-xs uppercase tracking-wider text-slate-500">
+                    <span>Intitulé</span>
+                    <span>Montant</span>
+                  </div>
+                  {rows.map(({ f, i }) => (
+                    <div key={f.key} className="grid grid-cols-[1fr_120px] items-center gap-2">
+                      <Input value={f.label} disabled />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={f.amount || ''}
+                        onChange={(e) => setFee(i, { amount: Number(e.target.value) })}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
           </div>
         </Card>
 

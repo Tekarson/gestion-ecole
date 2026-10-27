@@ -208,12 +208,17 @@ function FinanceBreakdown({ prefix: _p, finance }: { prefix: string; finance: St
 
 function PaymentSummary({ finance }: { finance: StudentFinance }) {
   const items = [
-    { label: 'Place', done: finance.placeConfirmed, detail: 'Frais fixes + tranche 1' },
-    { label: 'Frais fixes', done: finance.fixedPaid >= finance.fixedDue, detail: `${fmt(finance.fixedPaid)} / ${fmt(finance.fixedDue)}` },
+    { label: 'Place', done: finance.placeConfirmed, detail: 'Ouverture de dossier + tranche 1' },
+    { label: 'Frais connexes', done: finance.fixedPaid >= finance.fixedDue, detail: `${fmt(finance.fixedPaid)} / ${fmt(finance.fixedDue)}` },
+    ...(finance.otherDue > 0
+      ? [{ label: 'Autres frais', done: finance.otherPaid >= finance.otherDue, detail: `${fmt(finance.otherPaid)} / ${fmt(finance.otherDue)}` }]
+      : []),
     ...(finance.booksDue > 0
       ? [{ label: 'Livres', done: finance.booksPaid >= finance.booksDue, detail: `${fmt(finance.booksPaid)} / ${fmt(finance.booksDue)}` }]
       : []),
-    { label: 'Minerval', done: finance.minervalPaid >= finance.minervalDue, detail: `${fmt(finance.minervalPaid)} / ${fmt(finance.minervalDue)}` },
+    ...(finance.minervalDue > 0
+      ? [{ label: 'Minerval', done: finance.minervalPaid >= finance.minervalDue, detail: `${fmt(finance.minervalPaid)} / ${fmt(finance.minervalDue)}` }]
+      : []),
   ]
   return (
     <Card className="p-5">

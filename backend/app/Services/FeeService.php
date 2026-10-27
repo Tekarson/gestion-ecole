@@ -14,8 +14,14 @@ use Illuminate\Support\Carbon;
 /**
  * Fee calculation engine. A family pays:
  *  - a minerval per child, split in 3 tranches (stored on the class),
- *  - fixed fees (inscription, uniforme, assurance, divers) stored in fee_settings,
+ *  - frais d'ouverture de dossier (inscription) stored in fee_settings,
+ *  - frais connexes (divers, uniforme, gymnastique, journal de classe, …) stored in fee_settings,
+ *  - autres frais (camp d'été, participation aux examens) stored in fee_settings,
  *  - a books amount per child (stored on the class).
+ *
+ * Statuts particuliers d'un élève :
+ *  - enfant d'enseignant : ne paie pas les frais d'ouverture de dossier,
+ *  - ayant droit         : paie les frais connexes mais pas le minerval.
  *
  * Règles familiales (cahier des charges) appliquées au minerval uniquement :
  *  - 1 à 3 enfants : aucun avantage,
@@ -27,7 +33,19 @@ class FeeService
 {
     public const ENROLLMENT_NATURES = ['inscription'];
 
-    public const FIXED_NATURES = ['uniforme', 'assurance', 'divers'];
+    /** Frais connexes. */
+    public const FIXED_NATURES = [
+        'divers',
+        'uniforme',
+        'gymnastique',
+        'journal_classe',
+        'uniforme_plus',
+        'attestation_frequentation',
+        'assurance',
+    ];
+
+    /** Autres frais (camp d'été, participation aux examens). */
+    public const OTHER_NATURES = ['camp_ete', 'examen'];
 
     public const MINERVAL_NATURES = ['tranche1', 'tranche2', 'tranche3'];
 
@@ -80,15 +98,21 @@ class FeeService
         $periods ??= TermPeriod::orderBy('term')->get();
 
         $exempt = $this->studentIsExempt($student);
+        $teacherChild = (bool) $student->is_teacher_child;
+        $entitled = (bool) $student->is_entitled;
+        $minervalWaived = $exempt || $entitled;
 
-        $enrollmentDue = $this->sumFees($feeSettings, self::ENROLLMENT_NATURES);
+        $enrollmentFee = $this->sumFees($feeSettings, self::ENROLLMENT_NATURES);
+        $enrollmentDue = $teacherChild ? 0.0 : $enrollmentFee;
         $fixedDue = $this->sumFees($feeSettings, self::FIXED_NATURES);
-        $minervalDue = $exempt || $class === null ? 0.0 : (float) $class->tranche1 + (float) $class->tranche2 + (float) $class->tranche3;
+        $otherDue = $this->sumFees($feeSettings, self::OTHER_NATURES);
+        $minervalDue = $minervalWaived || $class === null ? 0.0 : (float) $class->tranche1 + (float) $class->tranche2 + (float) $class->tranche3;
         $booksDue = $class ? (float) $class->books : 0.0;
 
         $grouped = $this->groupPaidByNature($payments);
         $enrollmentPaid = $this->sumGroup($grouped, self::ENROLLMENT_NATURES);
         $fixedPaid = $this->sumGroup($grouped, self::FIXED_NATURES);
+        $otherPaid = $this->sumGroup($grouped, self::OTHER_NATURES);
         $minervalPaid = $this->sumGroup($grouped, self::MINERVAL_NATURES);
         $booksPaid = $this->sumGroup($grouped, self::BOOKS_NATURES);
 
@@ -96,7 +120,7 @@ class FeeService
         $tranches = [];
         $tranche1Paid = 0.0;
         foreach ([1, 2, 3] as $term) {
-            $termDue = $class !== null ? (float) $class->{'tranche'.$term} : 0.0;
+            $termDue = $class !== null && ! $minervalWaived ? (float) $class->{'tranche'.$term} : 0.0;
             $termPaid = $grouped['tranche'.$term] ?? 0.0;
             if ($term === 1) {
                 $tranche1Paid = (float) $termPaid;
@@ -117,14 +141,17 @@ class FeeService
 
         // Detailed, line by line breakdown (fixed fees, books + tranches) so the
         // parent can see exactly what is due / paid for each item.
-        $lines = $this->buildLines($feeSettings, $class, $grouped, $tranches);
+        $lines = $this->buildLines($feeSettings, $class, $grouped, $tranches, $teacherChild);
 
-        $totalDue = round(($enrollmentDue + $fixedDue + $minervalDue + $booksDue) * 100) / 100;
-        $totalPaid = round(($enrollmentPaid + $fixedPaid + $minervalPaid + $booksPaid) * 100) / 100;
+        $totalDue = round(($enrollmentDue + $fixedDue + $otherDue + $minervalDue + $booksDue) * 100) / 100;
+        $totalPaid = round(($enrollmentPaid + $fixedPaid + $otherPaid + $minervalPaid + $booksPaid) * 100) / 100;
 
+        // La place est confirmée quand l'ouverture de dossier et la tranche 1
+        // sont réglées ; ce qui n'est pas dû (enfant d'enseignant, ayant droit,
+        // exonéré) compte comme réglé.
         $placeConfirmed = false;
-        $tranche1Due = $class !== null ? (float) $class->tranche1 : 0.0;
-        if ($class !== null && $enrollmentDue > 0 && $tranche1Due > 0) {
+        $tranche1Due = $tranches[0]['due'];
+        if ($class !== null && $enrollmentFee > 0 && (float) $class->tranche1 > 0) {
             $placeConfirmed = $enrollmentPaid >= $enrollmentDue && $tranche1Paid >= $tranche1Due;
         }
 
@@ -135,6 +162,8 @@ class FeeService
             'balance' => round(($totalDue - $totalPaid) * 100) / 100,
             'fixedDue' => round($fixedDue * 100) / 100,
             'fixedPaid' => round($fixedPaid * 100) / 100,
+            'otherDue' => round($otherDue * 100) / 100,
+            'otherPaid' => round($otherPaid * 100) / 100,
             'booksDue' => round($booksDue * 100) / 100,
             'booksPaid' => round($booksPaid * 100) / 100,
             'minervalDue' => round($minervalDue * 100) / 100,
@@ -145,6 +174,8 @@ class FeeService
             'lines' => $lines,
             'placeConfirmed' => $placeConfirmed,
             'exempt' => $exempt,
+            'teacherChild' => $teacherChild,
+            'entitled' => $entitled,
         ];
     }
 
@@ -163,6 +194,7 @@ class FeeService
 
         $minervalGross = 0.0;
         $fixedGross = 0.0;
+        $otherGross = 0.0;
         $booksGross = 0.0;
         $enrollmentGross = 0.0;
         $children = [];
@@ -174,6 +206,7 @@ class FeeService
             $finance = $this->studentFinance($student, $student->payments, $feeSettings, $periods);
             $minervalGross += $finance['minervalDue'];
             $fixedGross += $finance['fixedDue'];
+            $otherGross += $finance['otherDue'];
             $booksGross += $finance['booksDue'];
             $enrollmentGross += $finance['enrollmentDue'];
             if ($finance['exempt']) {
@@ -190,7 +223,7 @@ class FeeService
         $discount = round((float) ($rules['byCount'][$childCount] ?? 0.0) * 100) / 100;
         $minervalNet = round(($minervalGross - $discount) * 100) / 100;
 
-        $totalGross = round(($minervalGross + $fixedGross + $booksGross + $enrollmentGross) * 100) / 100;
+        $totalGross = round(($minervalGross + $fixedGross + $otherGross + $booksGross + $enrollmentGross) * 100) / 100;
         $totalNet = round(($totalGross - $discount) * 100) / 100;
 
         $totalPaid = round($family->payments()->where('status', 'confirmed')->sum('amount') * 100) / 100;
@@ -228,6 +261,7 @@ class FeeService
             'minervalGross' => $minervalGross,
             'minervalNet' => $minervalNet,
             'fixedGross' => round($fixedGross * 100) / 100,
+            'otherGross' => round($otherGross * 100) / 100,
             'booksGross' => round($booksGross * 100) / 100,
             'enrollmentGross' => round($enrollmentGross * 100) / 100,
             'children' => $children,
@@ -321,13 +355,16 @@ class FeeService
         $grouped = $this->groupPaidByNature($payments);
 
         $due = null;
-        if (in_array($nature, [...self::ENROLLMENT_NATURES, ...self::FIXED_NATURES], true)) {
+        if (in_array($nature, [...self::ENROLLMENT_NATURES, ...self::FIXED_NATURES, ...self::OTHER_NATURES], true)) {
             $setting = FeeSetting::where('label', $nature)->first();
             $due = $setting ? (float) $setting->amount : null;
+            if ($due !== null && in_array($nature, self::ENROLLMENT_NATURES, true) && $student->is_teacher_child) {
+                $due = 0.0;
+            }
         } elseif ($nature === 'livres' && $class) {
             $due = (float) $class->books;
         } elseif (preg_match('/^tranche([123])$/', (string) $nature, $m) === 1 && $class) {
-            $due = (float) $class->{'tranche'.$m[1]};
+            $due = $student->is_entitled || $this->studentIsExempt($student) ? 0.0 : (float) $class->{'tranche'.$m[1]};
         }
 
         if ($due === null) {
@@ -388,14 +425,18 @@ class FeeService
     /**
      * Build the line-by-line breakdown for the student finance payload.
      */
-    protected function buildLines(Collection $feeSettings, $class, array $grouped, array $tranches): array
+    protected function buildLines(Collection $feeSettings, $class, array $grouped, array $tranches, bool $teacherChild = false): array
     {
         $lines = [];
 
         foreach ($feeSettings as $fee) {
             $key = (string) $fee->label;
-            $due = (float) $fee->amount;
+            $due = $teacherChild && in_array($key, self::ENROLLMENT_NATURES, true) ? 0.0 : (float) $fee->amount;
             $paid = (float) ($grouped[$key] ?? 0.0);
+            // Frais non dus et non payés (montant à 0, enfant d'enseignant…) : pas de ligne.
+            if ($due <= 0.0 && $paid <= 0.0) {
+                continue;
+            }
             $lines[] = [
                 'key' => $key,
                 'label' => \App\Support\Payloads::feeLabel($key),
@@ -419,8 +460,12 @@ class FeeService
             }
 
             foreach ([1, 2, 3] as $term) {
-                $due = (float) $class->{'tranche'.$term};
+                $due = (float) $tranches[$term - 1]['due'];
                 $paid = (float) ($grouped['tranche'.$term] ?? 0.0);
+                // Minerval non dû (ayant droit, exonéré) et rien de payé : pas de ligne.
+                if ($due <= 0.0 && $paid <= 0.0) {
+                    continue;
+                }
                 $lines[] = [
                     'key' => 'tranche'.$term,
                     'label' => $tranches[$term - 1]['label'].' — Minerval',

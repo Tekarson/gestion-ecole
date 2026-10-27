@@ -118,7 +118,9 @@ function FamilyDashboard() {
           <BreakRow label="Minerval (brut)" value={fmt(f.minervalGross)} />
           <BreakRow label={`Réduction familiale (${f.childCount} enfants)`} value={`− ${fmt(f.discount)}`} tone="emerald" />
           <BreakRow label="Minerval (net)" value={fmt(f.minervalNet)} />
-          <BreakRow label="Frais fixes (inscription, uniforme, assurance, divers)" value={fmt(f.enrollmentGross + f.fixedGross)} />
+          {f.enrollmentGross > 0 && <BreakRow label="Frais d’ouverture de dossier" value={fmt(f.enrollmentGross)} />}
+          <BreakRow label="Frais connexes" value={fmt(f.fixedGross)} />
+          {f.otherGross > 0 && <BreakRow label="Autres frais (camp d’été, examens)" value={fmt(f.otherGross)} />}
           {f.booksGross > 0 && <BreakRow label="Livres" value={fmt(f.booksGross)} />}
           <BreakRow label="Total net à payer" value={fmt(f.totalNet)} strong />
           <BreakRow label="Déjà payé" value={fmt(f.totalPaid)} tone="emerald" />
@@ -211,6 +213,12 @@ function ChildCard({ child }: { child: FamilyChild }) {
             <div className="text-xs text-slate-500">
               {child.cls ? child.cls.name : 'Classe non définie'} · {child.student.matricule}
             </div>
+            {(child.finance.teacherChild || child.finance.entitled) && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {child.finance.teacherChild && <Badge tone="sky">Enfant d’enseignant</Badge>}
+                {child.finance.entitled && <Badge tone="sky">Ayant droit</Badge>}
+              </div>
+            )}
           </div>
         </div>
         {child.finance.placeConfirmed ? (

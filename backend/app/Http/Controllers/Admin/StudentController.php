@@ -39,6 +39,8 @@ class StudentController extends Controller
             'class_id' => ['required', 'string', 'exists:school_classes,id'],
             'family_id' => ['nullable', 'string', 'exists:families,id'],
             'status' => ['nullable', 'in:active,inactive'],
+            'is_teacher_child' => ['nullable', 'boolean'],
+            'is_entitled' => ['nullable', 'boolean'],
         ]);
 
         $year = $references->startYear(SchoolContext::activeYear());
@@ -53,6 +55,8 @@ class StudentController extends Controller
             'family_id' => $data['family_id'] ?? null,
             'matricule' => $references->nextMatricule($year),
             'is_exempt' => false,
+            'is_teacher_child' => (bool) ($data['is_teacher_child'] ?? false),
+            'is_entitled' => (bool) ($data['is_entitled'] ?? false),
             'status' => $data['status'] ?? 'active',
         ]);
 
@@ -77,6 +81,8 @@ class StudentController extends Controller
             'family_id' => ['sometimes', 'nullable', 'string', 'exists:families,id'],
             'status' => ['sometimes', 'in:active,inactive'],
             'is_exempt' => ['sometimes', 'boolean'],
+            'is_teacher_child' => ['sometimes', 'boolean'],
+            'is_entitled' => ['sometimes', 'boolean'],
             'photo' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ]);
 

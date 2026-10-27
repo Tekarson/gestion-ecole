@@ -271,4 +271,73 @@ class FeeServiceTest extends TestCase
 
         $this->assertSame(40.0, $this->fees->natureRemaining($student, 'tranche1'));
     }
+
+    public function testTeacherChildDoesNotPayEnrollmentFee(): void
+    {
+        $student = $this->makeStudent('Esther');
+        $student->update(['is_teacher_child' => true]);
+
+        $finance = $this->fees->studentFinance($student->fresh(), collect());
+
+        $this->assertSame(0.0, $finance['enrollmentDue']);
+        $this->assertSame(210.0, $finance['fixedDue']);
+        $this->assertSame(360.0, $finance['minervalDue']);
+        $this->assertSame(645.0, $finance['totalDue']);
+        $this->assertNotContains('inscription', array_column($finance['lines'], 'key'));
+        $this->assertSame(0.0, $this->fees->natureRemaining($student->fresh(), 'inscription'));
+    }
+
+    public function testTeacherChildPlaceConfirmedWithTranche1Only(): void
+    {
+        $student = $this->makeStudent('Esther');
+        $student->update(['is_teacher_child' => true]);
+
+        Payment::create([
+            'reference' => 'REC-2026-000001',
+            'family_id' => $this->family->id,
+            'student_id' => $student->id,
+            'amount' => 120,
+            'method' => 'especes',
+            'date' => now(),
+            'category' => 'tranche1',
+            'status' => 'confirmed',
+        ]);
+
+        $finance = $this->fees->studentFinance($student->fresh(), $student->payments);
+
+        $this->assertTrue($finance['placeConfirmed']);
+    }
+
+    public function testEntitledStudentPaysConnexeFeesButNoMinerval(): void
+    {
+        $student = $this->makeStudent('Josué');
+        $student->update(['is_entitled' => true]);
+
+        $finance = $this->fees->studentFinance($student->fresh(), collect());
+
+        $this->assertSame(0.0, $finance['minervalDue']);
+        $this->assertSame(210.0, $finance['fixedDue']);
+        $this->assertSame(200.0, $finance['enrollmentDue']);
+        $this->assertSame([0.0, 0.0, 0.0], array_column($finance['tranches'], 'due'));
+        $this->assertNotContains('tranche1', array_column($finance['lines'], 'key'));
+        $this->assertSame(0.0, $this->fees->natureRemaining($student->fresh(), 'tranche2'));
+    }
+
+    public function testNewConnexeAndOtherFeesAreCounted(): void
+    {
+        FeeSetting::where('label', 'gymnastique')->update(['amount' => 15]);
+        FeeSetting::where('label', 'camp_ete')->update(['amount' => 50]);
+        FeeSetting::where('label', 'examen')->update(['amount' => 10]);
+
+        $student = $this->makeStudent('Alima');
+        $finance = $this->fees->studentFinance($student, collect());
+
+        $this->assertSame(225.0, $finance['fixedDue']);
+        $this->assertSame(60.0, $finance['otherDue']);
+        $this->assertSame(200.0 + 225.0 + 60.0 + 360.0 + 75.0, $finance['totalDue']);
+        $keys = array_column($finance['lines'], 'key');
+        $this->assertContains('camp_ete', $keys);
+        $this->assertNotContains('journal_classe', $keys);
+        $this->assertSame(50.0, $this->fees->natureRemaining($student, 'camp_ete'));
+    }
 }

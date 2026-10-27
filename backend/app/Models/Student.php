@@ -20,6 +20,8 @@ class Student extends Model
         'matricule',
         'photo',
         'is_exempt',
+        'is_teacher_child',
+        'is_entitled',
         'status',
     ];
 
@@ -29,6 +31,8 @@ class Student extends Model
         'class_id' => 'string',
         'birth_date' => 'date',
         'is_exempt' => 'boolean',
+        'is_teacher_child' => 'boolean',
+        'is_entitled' => 'boolean',
     ];
 
     public function family(): BelongsTo

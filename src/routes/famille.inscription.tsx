@@ -27,7 +27,15 @@ function InscriptionPage() {
   const feeSettings = refs.data?.feeSettings ?? []
   const childCount = fam.data?.finance.childCount ?? 0
 
-  const fixedTotal = feeSettings.reduce((s, f) => s + f.amount, 0)
+  // Ouverture de dossier + frais connexes (les autres frais — camp d’été,
+  // examens — ne sont pas dus à l’inscription).
+  const enrollmentTotal = feeSettings
+    .filter((f) => f.category === 'inscription')
+    .reduce((s, f) => s + f.amount, 0)
+  const connexeTotal = feeSettings
+    .filter((f) => f.category !== 'inscription' && f.category !== 'other')
+    .reduce((s, f) => s + f.amount, 0)
+  const fixedTotal = enrollmentTotal + connexeTotal
   const cls = classes.find((c) => c.id === classId)
   const isExempt = childCount >= 6
 
@@ -146,7 +154,8 @@ function InscriptionPage() {
               </p>
             ) : (
               <dl className="space-y-2.5 text-sm">
-                <Row label="Frais d’inscription" value={fixedTotal} />
+                <Row label="Frais d’ouverture de dossier" value={enrollmentTotal} />
+                <Row label="Frais connexes" value={connexeTotal} />
                 {cls.books > 0 && <Row label="Livres" value={cls.books} />}
                 <Row label={isExempt ? 'Minerval (exonéré)' : 'Tranche 1'} value={isExempt ? 0 : cls.tranche1} />
                 {!isExempt && (

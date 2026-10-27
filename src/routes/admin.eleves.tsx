@@ -71,6 +71,8 @@ function AdminStudents() {
                       <Badge tone="emerald">Actif</Badge>
                     )}
                     {s.is_exempt && <Badge tone="amber">Exonéré</Badge>}
+                    {s.is_teacher_child && <Badge tone="sky">Enfant d’enseignant</Badge>}
+                    {s.is_entitled && <Badge tone="sky">Ayant droit</Badge>}
                   </div>
                   <div className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-slate-500">
                     <span className="font-mono text-xs text-slate-400">{s.matricule}</span>
@@ -122,6 +124,8 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
   const [classId, setClassId] = useState(student?.class_id ?? '')
   const [status, setStatus] = useState<'active' | 'inactive'>(student?.status ?? 'active')
   const [isExempt, setIsExempt] = useState(student?.is_exempt ?? false)
+  const [isTeacherChild, setIsTeacherChild] = useState(student?.is_teacher_child ?? false)
+  const [isEntitled, setIsEntitled] = useState(student?.is_entitled ?? false)
   const [photo, setPhoto] = useState(student?.photo_url ?? '')
 
   const busy = create.isPending || update.isPending
@@ -160,6 +164,8 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
           postnom: postnom.trim() || undefined,
           gender: gender || undefined,
           class_id: classId,
+          is_teacher_child: isTeacherChild,
+          is_entitled: isEntitled,
           photo: photo.trim() || null,
         },
         options,
@@ -168,7 +174,14 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
       update.mutate(
         {
           id: student.id,
-          input: { class_id: classId, status, is_exempt: isExempt, photo: photo.trim() || null },
+          input: {
+            class_id: classId,
+            status,
+            is_exempt: isExempt,
+            is_teacher_child: isTeacherChild,
+            is_entitled: isEntitled,
+            photo: photo.trim() || null,
+          },
         },
         options,
       )
@@ -278,6 +291,34 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
             </div>
           </div>
         )}
+
+        <fieldset className="mt-4 space-y-2 rounded-xl border border-slate-200 p-3">
+          <legend className="px-1 text-xs font-medium uppercase tracking-wider text-slate-500">Statut particulier</legend>
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={isTeacherChild}
+              onChange={(e) => setIsTeacherChild(e.target.checked)}
+              className="mt-0.5 size-4 accent-brand-500"
+            />
+            <span>
+              Enfant d’enseignant
+              <span className="block text-xs text-slate-500">Ne paie pas les frais d’ouverture de dossier.</span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={isEntitled}
+              onChange={(e) => setIsEntitled(e.target.checked)}
+              className="mt-0.5 size-4 accent-brand-500"
+            />
+            <span>
+              Ayant droit
+              <span className="block text-xs text-slate-500">Paie les frais connexes, pas le minerval.</span>
+            </span>
+          </label>
+        </fieldset>
 
         <div className="mt-4">
           <Label htmlFor="student-photo">Photo (URL)</Label>
