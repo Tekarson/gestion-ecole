@@ -2,6 +2,7 @@ import { createFileRoute, Navigate, Outlet } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
   ClipboardList,
+  FileBarChart,
   FileClock,
   Gauge,
   GraduationCap,
@@ -48,6 +49,7 @@ function AdminLayout() {
     }
     if (can(profile, 'paiements')) {
       nav.push({ to: '/admin/paiements', label: 'Paiements', icon: <ClipboardList className="size-5" /> })
+      nav.push({ to: '/admin/rapports', label: 'Rapports', icon: <FileBarChart className="size-5" /> })
     }
     if (can(profile, 'familles')) {
       nav.push({ to: '/admin/familles', label: 'Familles', icon: <Users className="size-5" /> })

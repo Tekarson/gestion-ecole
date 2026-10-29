@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Bell, BellRing } from 'lucide-react'
@@ -5,6 +6,8 @@ import { notificationsQuery, useMarkNotificationReadMutation } from '@/lib/data'
 import { dateFr } from '@/lib/fees'
 import { Card, EmptyState, SectionTitle } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { Pagination, SearchInput } from '@/components/ListTools'
+import { matchesSearch, usePagination } from '@/lib/listing'
 
 export const Route = createFileRoute('/famille/notifications')({
   component: NotificationsPage,
@@ -14,8 +17,15 @@ function NotificationsPage() {
   const notifs = useQuery(notificationsQuery)
   const markRead = useMarkNotificationReadMutation()
 
-  const items = notifs.data ?? []
+  const items = useMemo(() => notifs.data ?? [], [notifs.data])
   const unread = items.filter((n) => !n.read_at).length
+  const [search, setSearch] = useState('')
+  const [onlyUnread, setOnlyUnread] = useState(false)
+  const filtered = useMemo(
+    () => items.filter((n) => (!onlyUnread || !n.read_at) && matchesSearch(search, [n.title, n.body])),
+    [items, onlyUnread, search],
+  )
+  const paging = usePagination(filtered, `${search}|${onlyUnread}`)
 
   return (
     <div className="space-y-6">
@@ -34,7 +44,22 @@ function NotificationsPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {items.map((n) => (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <SearchInput value={search} onChange={setSearch} placeholder="Rechercher une notification…" className="flex-1" />
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={onlyUnread}
+                onChange={(e) => setOnlyUnread(e.target.checked)}
+                className="size-4 accent-brand-500"
+              />
+              Non lues seulement
+            </label>
+          </div>
+          {filtered.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-500">Aucune notification ne correspond.</p>
+          )}
+          {paging.pageItems.map((n) => (
             <button
               key={n.id}
               type="button"
@@ -64,6 +89,9 @@ function NotificationsPage() {
               </div>
             </button>
           ))}
+          <Card className="p-0">
+            <Pagination {...paging} />
+          </Card>
         </div>
       )}
 

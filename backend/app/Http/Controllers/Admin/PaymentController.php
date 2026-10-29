@@ -79,6 +79,8 @@ class PaymentController extends Controller
             'details' => [
                 'reference' => $payment->reference,
                 'student' => $student->full_name,
+                'nature' => $data['nature'],
+                'amount' => (float) $data['amount'],
                 'method' => $data['method'],
             ],
         ]);
@@ -129,6 +131,9 @@ class PaymentController extends Controller
             'action' => "payment.{$data['status']}",
             'details' => [
                 'reference' => $payment->reference,
+                'student' => $payment->student?->full_name,
+                'nature' => $payment->category,
+                'amount' => (float) $payment->amount,
                 'note' => $data['note'] ?? null,
             ],
         ]);

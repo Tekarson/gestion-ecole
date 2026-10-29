@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FamilyController;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\UserController;
@@ -51,6 +52,7 @@ Route::prefix('v1')->group(function () {
             Route::middleware('can:paiements,create')->post('admin/payments', [AdminPaymentController::class, 'store']);
             Route::middleware('can:paiements,read')->get('admin/payments/{payment}/recu', [AdminPaymentController::class, 'recu']);
             Route::middleware('can:paiements,update')->patch('payments/{payment}/status', [AdminPaymentController::class, 'updateStatus']);
+            Route::middleware('can:paiements,read')->get('admin/reports/solvency', [ReportController::class, 'solvency']);
             Route::middleware('can:journal,read')->get('admin/audit', [DashboardController::class, 'journal']);
             Route::middleware('can:parametres,read')->get('admin/settings', [SettingsController::class, 'index']);
             Route::middleware('can:parametres,update')->put('admin/settings', [SettingsController::class, 'update']);

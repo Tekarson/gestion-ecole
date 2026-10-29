@@ -19,6 +19,7 @@ import type {
   RefsPayload,
   SettingsInput,
   SettingsPayload,
+  SolvencyReport,
   StudentFinance,
   StudentPayload,
 } from './fees'
@@ -94,6 +95,13 @@ export const adminStudentFinanceQuery = (id: string) =>
     queryKey: ['admin', 'student-finance', id],
     queryFn: () => api<StudentFinance>(`/admin/students/${id}/finance`),
     enabled: hasToken() && id !== '',
+  })
+
+export const solvencyQuery = (nature: string) =>
+  queryOptions({
+    queryKey: ['admin', 'solvency', nature],
+    queryFn: () => api<SolvencyReport>(`/admin/reports/solvency?nature=${encodeURIComponent(nature)}`),
+    enabled: hasToken(),
   })
 
 export const adminPaymentsQuery = queryOptions({
@@ -289,7 +297,8 @@ export function useUpdatePaymentStatusMutation() {
     mutationFn: ({ id, status, note }: UpdatePaymentStatusInput) =>
       api<Payment>(`/payments/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status, note }),
+        // L'API attend les statuts techniques (confirmed / cancelled).
+        body: JSON.stringify({ status: status === 'annule' ? 'cancelled' : 'confirmed', note }),
       }),
     onSuccess: () => invalidateAll(queryClient),
   })

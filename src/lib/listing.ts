@@ -38,3 +38,6 @@ export function usePagination<T>(items: T[], resetKey: unknown, pageSize = PAGE_
 
   return { page: current, pageCount, pageItems, setPage, total: items.length, pageSize }
 }
+
+/** Plain table styles that print cleanly. */
+export const printTable = 'w-full border-collapse text-left text-[11px] [&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-1'

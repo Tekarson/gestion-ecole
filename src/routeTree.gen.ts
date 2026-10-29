@@ -19,6 +19,7 @@ import { Route as AdminFamillesRouteImport } from './routes/admin.familles'
 import { Route as AdminJournalRouteImport } from './routes/admin.journal'
 import { Route as AdminPaiementsRouteImport } from './routes/admin.paiements'
 import { Route as AdminParametresRouteImport } from './routes/admin.parametres'
+import { Route as AdminRapportsRouteImport } from './routes/admin.rapports'
 import { Route as AdminUtilisateursRouteImport } from './routes/admin.utilisateurs'
 import { Route as FamilleIndexRouteImport } from './routes/famille.index'
 import { Route as FamilleHistoriqueRouteImport } from './routes/famille.historique'
@@ -77,6 +78,11 @@ const AdminParametresRoute = AdminParametresRouteImport.update({
   path: '/parametres',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminRapportsRoute = AdminRapportsRouteImport.update({
+  id: '/rapports',
+  path: '/rapports',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminUtilisateursRoute = AdminUtilisateursRouteImport.update({
   id: '/utilisateurs',
   path: '/utilisateurs',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/admin/journal': typeof AdminJournalRoute
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/parametres': typeof AdminParametresRoute
+  '/admin/rapports': typeof AdminRapportsRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/famille/historique': typeof FamilleHistoriqueRoute
   '/famille/inscription': typeof FamilleInscriptionRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/admin/journal': typeof AdminJournalRoute
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/parametres': typeof AdminParametresRoute
+  '/admin/rapports': typeof AdminRapportsRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/famille/historique': typeof FamilleHistoriqueRoute
   '/famille/inscription': typeof FamilleInscriptionRoute
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/admin/journal': typeof AdminJournalRoute
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/parametres': typeof AdminParametresRoute
+  '/admin/rapports': typeof AdminRapportsRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/famille/historique': typeof FamilleHistoriqueRoute
   '/famille/inscription': typeof FamilleInscriptionRoute
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/admin/journal'
     | '/admin/paiements'
     | '/admin/parametres'
+    | '/admin/rapports'
     | '/admin/utilisateurs'
     | '/famille/historique'
     | '/famille/inscription'
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/admin/journal'
     | '/admin/paiements'
     | '/admin/parametres'
+    | '/admin/rapports'
     | '/admin/utilisateurs'
     | '/famille/historique'
     | '/famille/inscription'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/admin/journal'
     | '/admin/paiements'
     | '/admin/parametres'
+    | '/admin/rapports'
     | '/admin/utilisateurs'
     | '/famille/historique'
     | '/famille/inscription'
@@ -306,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminParametresRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/rapports': {
+      id: '/admin/rapports'
+      path: '/rapports'
+      fullPath: '/admin/rapports'
+      preLoaderRoute: typeof AdminRapportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/utilisateurs': {
       id: '/admin/utilisateurs'
       path: '/utilisateurs'
@@ -364,6 +383,7 @@ interface AdminRouteChildren {
   AdminJournalRoute: typeof AdminJournalRoute
   AdminPaiementsRoute: typeof AdminPaiementsRoute
   AdminParametresRoute: typeof AdminParametresRoute
+  AdminRapportsRoute: typeof AdminRapportsRoute
   AdminUtilisateursRoute: typeof AdminUtilisateursRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -374,6 +394,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminJournalRoute: AdminJournalRoute,
   AdminPaiementsRoute: AdminPaiementsRoute,
   AdminParametresRoute: AdminParametresRoute,
+  AdminRapportsRoute: AdminRapportsRoute,
   AdminUtilisateursRoute: AdminUtilisateursRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

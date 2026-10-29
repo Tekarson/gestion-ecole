@@ -223,6 +223,27 @@ export interface AdminFamily {
   finance: FamilyFinance
 }
 
+export interface SolvencyRow {
+  student_id: string
+  student_name: string
+  matricule: string | null
+  class_name: string | null
+  family_id: string
+  parent_name: string
+  phone: string | null
+  due: number
+  paid: number
+  remaining: number
+  solvent: boolean
+}
+
+export interface SolvencyReport {
+  school_year: string
+  nature: string
+  natures: { key: string; label: string }[]
+  rows: SolvencyRow[]
+}
+
 export interface AuditEntry {
   id: string
   user_name: string | null

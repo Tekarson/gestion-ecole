@@ -386,4 +386,54 @@ public function testSettingsCreateAndDeleteEmptyClass(): void
             ])
             ->assertStatus(422);
     }
+
+    public function testSolvencyReportSplitsSolventAndInsolvent(): void
+    {
+        FeeSetting::create(['label' => 'assurance', 'amount' => 20, 'category' => 'fixed', 'school_year' => '2026-2027']);
+        $paid = $this->student(['first_name' => 'Paye']);
+        $this->student(['first_name' => 'Doit', 'matricule' => '2026-0099']);
+        Payment::create([
+            'reference' => 'REC-2026-000001',
+            'family_id' => $paid->family_id,
+            'student_id' => $paid->id,
+            'amount' => 20,
+            'method' => 'especes',
+            'date' => now(),
+            'category' => 'assurance',
+            'status' => 'confirmed',
+        ]);
+
+        $rows = collect($this->withToken($this->adminToken)
+            ->getJson('/api/v1/admin/reports/solvency?nature=assurance')
+            ->assertOk()
+            ->json('rows'));
+
+        $this->assertCount(2, $rows);
+        $this->assertTrue($rows->firstWhere('student_name', 'Paye Test')['solvent']);
+        $this->assertFalse($rows->firstWhere('student_name', 'Doit Test')['solvent']);
+        $this->assertSame(20, $rows->firstWhere('student_name', 'Doit Test')['remaining']);
+    }
+
+    public function testConfirmPaymentStatusLogsAmount(): void
+    {
+        $student = $this->student();
+        $payment = Payment::create([
+            'reference' => 'REC-2026-000005',
+            'family_id' => $student->family_id,
+            'student_id' => $student->id,
+            'amount' => 120,
+            'method' => 'mobile_money',
+            'date' => now(),
+            'category' => 'tranche1',
+            'status' => 'pending',
+        ]);
+
+        $this->withToken($this->adminToken)
+            ->patchJson('/api/v1/payments/'.$payment->id.'/status', ['status' => 'confirmed'])
+            ->assertOk()
+            ->assertJsonPath('status', 'confirme');
+
+        $log = AuditLog::where('action', 'payment.confirmed')->first();
+        $this->assertSame(120, (int) $log->details['amount']);
+    }
 }

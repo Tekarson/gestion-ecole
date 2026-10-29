@@ -111,7 +111,7 @@ function FamilyCard({ family }: { family: AdminFamily }) {
       </div>
 
       <div className="mt-auto flex justify-end">
-        <Link to="/admin/paiements">
+        <Link to="/admin/paiements" search={{ famille: family.profile.id }}>
           <Button variant="ghost" size="sm">
             Voir les paiements
           </Button>
