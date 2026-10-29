@@ -332,6 +332,18 @@ export function useUpdateSettingsMutation() {
   })
 }
 
+export function useUpdateFamilyMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, parent_name, phone }: { id: string; parent_name: string; phone: string | null }) =>
+      api<{ id: string; parent_name: string; phone: string | null }>(`/admin/families/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ parent_name, phone }),
+      }),
+    onSuccess: () => invalidateAll(queryClient),
+  })
+}
+
 export function useDeleteClassMutation() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -366,6 +378,7 @@ export interface AdminUserInput {
   postnom?: string
   email: string
   password?: string
+  role?: 'admin' | 'gestionnaire' | 'collaborateur'
   is_active?: boolean
   modules: AdminUserModules
 }

@@ -436,4 +436,86 @@ public function testSettingsCreateAndDeleteEmptyClass(): void
         $log = AuditLog::where('action', 'payment.confirmed')->first();
         $this->assertSame(120, (int) $log->details['amount']);
     }
+
+    public function testGestionnaireAndCollaborateurUseModulePermissions(): void
+    {
+        foreach (['gestionnaire', 'collaborateur'] as $role) {
+            $user = User::create([
+                'full_name' => ucfirst($role),
+                'email' => $role.'@ntshik.cd',
+                'password' => Hash::make('password'),
+                'role' => $role,
+            ]);
+            ModulePermission::create([
+                'user_id' => $user->id,
+                'module' => 'eleves',
+                'can_read' => true,
+                'can_create' => false,
+                'can_update' => false,
+                'can_delete' => false,
+            ]);
+            $token = $user->createToken('ntshik')->plainTextToken;
+
+            $this->withToken($token)->getJson('/api/v1/admin/students')->assertOk();
+            $this->withToken($token)->getJson('/api/v1/admin/payments')->assertForbidden();
+            $this->app['auth']->forgetGuards();
+        }
+    }
+
+    public function testOnlySuperadminRenamesStudentsAndFamilies(): void
+    {
+        $student = $this->student();
+
+        $this->withToken($this->adminToken)
+            ->putJson('/api/v1/admin/students/'.$student->id, ['first_name' => 'Autre'])
+            ->assertOk()
+            ->assertJsonPath('first_name', 'Ruth');
+        $this->app['auth']->forgetGuards();
+
+        $super = User::create([
+            'full_name' => 'Super',
+            'email' => 'super@ntshik.cd',
+            'password' => Hash::make('password'),
+            'role' => 'superadmin',
+        ]);
+        $token = $super->createToken('ntshik')->plainTextToken;
+
+        $this->withToken($token)
+            ->putJson('/api/v1/admin/students/'.$student->id, ['first_name' => 'Rachel', 'postnom' => 'Mateso'])
+            ->assertOk()
+            ->assertJsonPath('first_name', 'Rachel')
+            ->assertJsonPath('postnom', 'Mateso');
+
+        $this->withToken($token)
+            ->putJson('/api/v1/admin/families/'.$student->family_id, ['parent_name' => 'Nouveau Nom', 'phone' => '+243811111111'])
+            ->assertOk();
+        $this->assertDatabaseHas('families', ['id' => $student->family_id, 'parent_name' => 'Nouveau Nom']);
+        $this->app['auth']->forgetGuards();
+
+        $this->withToken($this->adminToken)
+            ->putJson('/api/v1/admin/families/'.$student->family_id, ['parent_name' => 'X'])
+            ->assertForbidden();
+    }
+
+    public function testSuperadminCreatesGestionnaire(): void
+    {
+        $super = User::create([
+            'full_name' => 'Super',
+            'email' => 'super@ntshik.cd',
+            'password' => Hash::make('password'),
+            'role' => 'superadmin',
+        ]);
+
+        $this->withToken($super->createToken('ntshik')->plainTextToken)
+            ->postJson('/api/v1/admin/users', [
+                'first_name' => 'Gina',
+                'last_name' => 'Kabila',
+                'email' => 'gina@ntshik.cd',
+                'password' => 'secret123',
+                'role' => 'gestionnaire',
+                'modules' => ['paiements' => ['read' => true]],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('role', 'gestionnaire');
+    }
 }

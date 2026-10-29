@@ -11,7 +11,8 @@ import {
   useUpdateAdminUserMutation,
   whoamiQuery,
 } from '@/lib/data'
-import type { AdminUser, AdminUserModules, ModuleFlags } from '@/lib/fees'
+import type { AdminUser, AdminUserModules, ModuleFlags, StaffRole } from '@/lib/fees'
+import { rolePresetModules, roleLabel, STAFF_ROLES } from '@/lib/fees'
 import { Badge, Button, Card, EmptyState, Input, Label, SectionTitle } from '@/components/ui'
 
 export const Route = createFileRoute('/admin/utilisateurs')({
@@ -97,6 +98,7 @@ function AdminUsers() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-slate-900">{user.full_name}</span>
+                      <Badge tone="violet">{roleLabel(user.role)}</Badge>
                       {user.is_active ? (
                         <Badge tone="emerald">Actif</Badge>
                       ) : (
@@ -159,7 +161,18 @@ function UserFormDialog({ mode, user, catalog, onClose }: UserFormDialogProps) {
   const [email, setEmail] = useState(user?.email ?? '')
   const [password, setPassword] = useState('')
   const [isActive, setIsActive] = useState(user?.is_active ?? true)
-  const [modules, setModules] = useState<AdminUserModules>(user?.modules ?? {})
+  const [modules, setModules] = useState<AdminUserModules>(
+    user?.modules ?? rolePresetModules('admin', catalog.map(([key]) => key)),
+  )
+  const [role, setRole] = useState<StaffRole>(
+    user && user.role !== 'family' && user.role !== 'superadmin' ? user.role : 'admin',
+  )
+
+  function changeRole(next: StaffRole) {
+    setRole(next)
+    // Propose les droits par défaut du rôle ; ils restent modifiables ci-dessous.
+    setModules(rolePresetModules(next, catalog.map(([key]) => key)))
+  }
 
   const busy = create.isPending || update.isPending
 
@@ -190,6 +203,7 @@ function UserFormDialog({ mode, user, catalog, onClose }: UserFormDialogProps) {
       postnom: postnom.trim() || undefined,
       email: email.trim(),
       password: password || undefined,
+      role,
       is_active: isActive,
       modules,
     }
@@ -294,6 +308,34 @@ function UserFormDialog({ mode, user, catalog, onClose }: UserFormDialogProps) {
               Compte actif
             </label>
           </div>
+        </div>
+
+        <div className="mt-6">
+          <div className="mb-2 text-sm font-semibold text-slate-900">Niveau d’administration</div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {STAFF_ROLES.map((r) => (
+              <label
+                key={r.value}
+                className={`cursor-pointer rounded-xl border p-3 text-sm transition ${
+                  role === r.value ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="staff-role"
+                  value={r.value}
+                  checked={role === r.value}
+                  onChange={() => changeRole(r.value)}
+                  className="sr-only"
+                />
+                <div className="font-semibold text-slate-900">{r.label}</div>
+                <div className="mt-0.5 text-xs text-slate-500">{r.hint}</div>
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Choisir un niveau applique ses droits par défaut ; vous pouvez ensuite les ajuster module par module.
+          </p>
         </div>
 
         <div className="mt-6">

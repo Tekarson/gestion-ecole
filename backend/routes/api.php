@@ -66,6 +66,7 @@ Route::prefix('v1')->group(function () {
             Route::get('admin/users', [UserController::class, 'index']);
             Route::post('admin/users', [UserController::class, 'store']);
             Route::put('admin/users/{user}', [UserController::class, 'update']);
+            Route::put('admin/families/{family}', [FamilyController::class, 'update']);
             Route::delete('admin/users/{user}', [UserController::class, 'destroy']);
         });
     });

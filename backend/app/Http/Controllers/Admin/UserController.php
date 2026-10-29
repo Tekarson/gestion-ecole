@@ -21,7 +21,7 @@ class UserController extends Controller
 {
     public function index(): JsonResponse
     {
-        $users = User::where('role', User::ROLE_ADMIN)
+        $users = User::whereIn('role', User::STAFF_ROLES)
             ->with('modulePermissions')
             ->orderBy('id')
             ->get();
@@ -49,7 +49,7 @@ class UserController extends Controller
             'full_name' => User::composeFullName($data['first_name'], $data['last_name'], $data['postnom'] ?? null),
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'role' => User::ROLE_ADMIN,
+            'role' => $data['role'] ?? User::ROLE_ADMIN,
             'is_active' => $data['is_active'] ?? true,
         ]);
 
@@ -76,6 +76,7 @@ class UserController extends Controller
             'postnom' => $data['postnom'] ?? null,
             'full_name' => User::composeFullName($data['first_name'], $data['last_name'], $data['postnom'] ?? null),
             'email' => $data['email'],
+            'role' => $data['role'] ?? $user->role,
             'is_active' => $data['is_active'] ?? true,
         ];
 
@@ -127,6 +128,7 @@ class UserController extends Controller
             'password' => $ignoreId === null
                 ? ['required', 'string', 'min:6']
                 : ['nullable', 'string', 'min:6'],
+            'role' => ['nullable', Rule::in(User::STAFF_ROLES)],
             'is_active' => ['boolean'],
             'modules' => ['array'],
             'modules.*.read' => ['boolean'],
@@ -161,7 +163,7 @@ class UserController extends Controller
 
     protected function guardEditable(User $user): void
     {
-        if ($user->role !== User::ROLE_ADMIN || $user->isSuperAdmin()) {
+        if (! $user->isStaff()) {
             abort(422, 'Ce compte ne peut pas être modifié.');
         }
     }

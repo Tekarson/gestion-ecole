@@ -19,6 +19,16 @@ class User extends Authenticatable
 
     public const ROLE_SUPERADMIN = 'superadmin';
 
+    public const ROLE_GESTIONNAIRE = 'gestionnaire';
+
+    public const ROLE_COLLABORATEUR = 'collaborateur';
+
+    /**
+     * Rôles du back-office gérés par le superadmin ; leurs droits dépendent
+     * tous des permissions par module (lecture, création, modification, suppression).
+     */
+    public const STAFF_ROLES = [self::ROLE_ADMIN, self::ROLE_GESTIONNAIRE, self::ROLE_COLLABORATEUR];
+
     protected $fillable = [
         'full_name',
         'first_name',
@@ -79,7 +89,12 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_SUPERADMIN], true);
+        return $this->isSuperAdmin() || $this->isStaff();
+    }
+
+    public function isStaff(): bool
+    {
+        return in_array($this->role, self::STAFF_ROLES, true);
     }
 
     public function isSuperAdmin(): bool
@@ -96,7 +111,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if ($this->role !== self::ROLE_ADMIN || ! in_array($action, Modules::ACTIONS, true)) {
+        if (! $this->isStaff() || ! in_array($action, Modules::ACTIONS, true)) {
             return false;
         }
 

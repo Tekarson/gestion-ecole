@@ -19,8 +19,8 @@ class EnsureRole
 
         $allowed = array_filter(array_map('trim', explode(',', $roles)));
 
-        // The superadmin always belongs to the back-office group.
-        $backOffice = in_array('admin', $allowed, true) && $user->isSuperAdmin();
+        // « admin » désigne tout le back-office : superadmin, admin, gestionnaire, collaborateur.
+        $backOffice = in_array('admin', $allowed, true) && $user->isAdmin();
 
         if (! $backOffice && (! in_array($user->role, $allowed, true))) {
             throw new AccessDeniedHttpException('Accès refusé.');

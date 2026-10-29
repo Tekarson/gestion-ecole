@@ -137,6 +137,7 @@ function AdminStudents() {
       {modal && (
         <StudentFormDialog
           mode={modal.mode}
+          isSuperadmin={whoami.data?.role === 'superadmin'}
           student={modal.mode === 'edit' ? modal.student : undefined}
           classes={refs.data?.classes ?? []}
           families={families.data ?? []}
@@ -152,10 +153,11 @@ interface StudentFormDialogProps {
   student?: AdminStudentRow
   classes: { id: string; name: string; section?: string }[]
   families: { profile: { id: string; full_name: string; phone: string | null } }[]
+  isSuperadmin?: boolean
   onClose: () => void
 }
 
-function StudentFormDialog({ mode, student, classes, families, onClose }: StudentFormDialogProps) {
+function StudentFormDialog({ mode, student, classes, families, isSuperadmin = false, onClose }: StudentFormDialogProps) {
   const create = useAdminCreateStudentMutation()
   const update = useAdminUpdateStudentMutation()
 
@@ -171,6 +173,8 @@ function StudentFormDialog({ mode, student, classes, families, onClose }: Studen
   const [photo, setPhoto] = useState(student?.photo_url ?? '')
   const [familyId, setFamilyId] = useState(student?.family_id ?? '')
   const [uploading, setUploading] = useState(false)
+  // Identité (noms, genre, famille) : figée après création, sauf pour le superadmin.
+  const locked = mode === 'edit' && !isSuperadmin
 
   async function pickPhoto(file: File | undefined) {
     if (!file) return
@@ -240,6 +244,15 @@ function StudentFormDialog({ mode, student, classes, families, onClose }: Studen
         {
           id: student.id,
           input: {
+            ...(isSuperadmin
+              ? {
+                  first_name: firstName.trim(),
+                  last_name: lastName.trim(),
+                  postnom: postnom.trim() || null,
+                  gender: gender || undefined,
+                  family_id: familyId || undefined,
+                }
+              : {}),
             class_id: classId,
             status,
             is_exempt: isExempt,
@@ -276,7 +289,7 @@ function StudentFormDialog({ mode, student, classes, families, onClose }: Studen
             <Input
               id="student-first"
               value={firstName}
-              disabled={mode === 'edit'}
+              disabled={locked}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Ex. Grace"
             />
@@ -286,7 +299,7 @@ function StudentFormDialog({ mode, student, classes, families, onClose }: Studen
             <Input
               id="student-postnom"
               value={postnom}
-              disabled={mode === 'edit'}
+              disabled={locked}
               onChange={(e) => setPostnom(e.target.value)}
               placeholder="Ex. Mateso"
             />
@@ -296,7 +309,7 @@ function StudentFormDialog({ mode, student, classes, families, onClose }: Studen
             <Input
               id="student-last"
               value={lastName}
-              disabled={mode === 'edit'}
+              disabled={locked}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Ex. Mwamba"
             />
@@ -309,7 +322,7 @@ function StudentFormDialog({ mode, student, classes, families, onClose }: Studen
             <Select
               id="student-gender"
               value={gender}
-              disabled={mode === 'edit'}
+              disabled={locked}
               onChange={(e) => setGender(e.target.value as 'M' | 'F' | '')}
               options={[
                 { value: '', label: 'À choisir', disabled: true },
@@ -334,7 +347,7 @@ function StudentFormDialog({ mode, student, classes, families, onClose }: Studen
           <Select
             id="student-family"
             value={familyId}
-            disabled={mode === 'edit'}
+            disabled={locked}
             onChange={(e) => setFamilyId(e.target.value)}
             options={[
               { value: '', label: 'À choisir', disabled: true },

@@ -118,7 +118,15 @@ class StudentController extends Controller
             'photo' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ]);
 
+        // Identité (noms, genre, famille) : modifiable par le superadmin uniquement.
+        if (! $request->user()->isSuperAdmin()) {
+            $data = array_diff_key($data, array_flip(['first_name', 'last_name', 'postnom', 'gender', 'family_id']));
+        }
+
         $student->fill(array_filter($data, fn ($value) => $value !== null));
+        if (array_key_exists('postnom', $data)) {
+            $student->postnom = $data['postnom'];
+        }
         if (array_key_exists('photo', $data)) {
             $student->photo = $data['photo'];
         }

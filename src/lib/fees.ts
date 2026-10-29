@@ -1,4 +1,35 @@
-export type Role = 'family' | 'admin' | 'superadmin'
+export type Role = 'family' | 'admin' | 'gestionnaire' | 'collaborateur' | 'superadmin'
+
+/** Rôles du back-office attribués par le superadmin (droits = permissions par module). */
+export type StaffRole = 'admin' | 'gestionnaire' | 'collaborateur'
+
+export const STAFF_ROLES: { value: StaffRole; label: string; hint: string }[] = [
+  { value: 'admin', label: 'Administrateur', hint: 'Tous les modules, toutes les actions par défaut.' },
+  { value: 'gestionnaire', label: 'Gestionnaire', hint: 'Consulte tout, crée et modifie élèves, familles et paiements.' },
+  { value: 'collaborateur', label: 'Collaborateur', hint: 'Consulte et encaisse les paiements.' },
+]
+
+/** Droits proposés par défaut pour un rôle (modifiables ensuite module par module). */
+export function rolePresetModules(role: StaffRole, moduleKeys: string[]): AdminUserModules {
+  const flags = (read: boolean, create: boolean, update: boolean, del: boolean): ModuleFlags => ({
+    read,
+    create,
+    update,
+    delete: del,
+  })
+  const result: AdminUserModules = {}
+  for (const key of moduleKeys) {
+    if (role === 'admin') {
+      result[key] = flags(true, true, true, true)
+    } else if (role === 'gestionnaire') {
+      const edit = ['eleves', 'familles', 'paiements'].includes(key)
+      result[key] = flags(true, edit, edit, false)
+    } else if (['dashboard', 'eleves', 'familles', 'paiements'].includes(key)) {
+      result[key] = flags(true, key === 'paiements', false, false)
+    }
+  }
+  return result
+}
 
 export interface Profile {
   id: string
@@ -462,12 +493,14 @@ export function dateFr(iso: string): string {
 }
 
 export function isBackOfficeRole(role: Role): boolean {
-  return role === 'admin' || role === 'superadmin'
+  return role === 'admin' || role === 'gestionnaire' || role === 'collaborateur' || role === 'superadmin'
 }
 
 export function roleLabel(role: Role): string {
   if (role === 'superadmin') return 'Superadministrateur'
   if (role === 'admin') return 'Administrateur'
+  if (role === 'gestionnaire') return 'Gestionnaire'
+  if (role === 'collaborateur') return 'Collaborateur'
   return 'Parent'
 }
 
