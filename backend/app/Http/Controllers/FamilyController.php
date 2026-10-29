@@ -34,6 +34,15 @@ class FamilyController extends Controller
             'finance' => collect($finance)->except('children')->all(),
             'payments' => $payments,
             'notifications' => $notifications,
+            // Enfants d'une année précédente, à réinscrire (sans les recréer).
+            'archived' => $user->family->students()
+                ->where('status', 'active')
+                ->where(fn ($q) => $q->whereNull('school_year')->orWhere('school_year', '!=', SchoolContext::activeYear()))
+                ->with('schoolClass')
+                ->orderBy('id')
+                ->get()
+                ->map(fn ($s) => Payloads::student($s) + ['class_name' => $s->schoolClass?->name])
+                ->values(),
         ]);
     }
 }

@@ -22,7 +22,7 @@ class DashboardController extends Controller
             ->values()
             ->all();
 
-        $studentCount = Student::where('status', 'active')->count();
+        $studentCount = Student::enrolled()->count();
         $familyCount = \App\Models\Family::count();
 
         $pending = Payment::where('status', 'pending')
@@ -67,7 +67,7 @@ class DashboardController extends Controller
             $exemptSixth += $finance['exemptCount'] ?? 0;
         }
         $pendingStudents = 0;
-        foreach (Student::with('payments')->where('status', 'active')->get() as $student) {
+        foreach (Student::with('payments')->enrolled()->get() as $student) {
             $finance = $fees->studentFinance($student, $student->payments);
             if ($finance['placeConfirmed']) {
                 $placeConfirmed++;

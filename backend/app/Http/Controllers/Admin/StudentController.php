@@ -25,6 +25,7 @@ class StudentController extends Controller
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();
+        // Tous les élèves (y compris archivés) : le filtre par année se fait à l'écran.
 
         return response()->json($students->map(fn (Student $s) => Payloads::adminStudent($s)));
     }
@@ -79,6 +80,22 @@ class StudentController extends Controller
     public function finance(Student $student, FeeService $fees): JsonResponse
     {
         return response()->json($fees->studentFinance($student->load('schoolClass', 'payments')));
+    }
+
+    /**
+     * Réinscription groupée d'élèves (archivés ou non) dans l'année active.
+     */
+    public function reenroll(Request $request, \App\Services\SchoolYearService $years): JsonResponse
+    {
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.id' => ['required', 'exists:students,id'],
+            'items.*.class_id' => ['required', 'exists:school_classes,id'],
+        ]);
+
+        $count = $years->reenroll($data['items'], $request->user()?->id);
+
+        return response()->json(['reenrolled' => $count]);
     }
 
     /**

@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { GraduationCap, ImageUp, Pencil, Plus, X } from 'lucide-react'
-import { toast } from 'sonner'
+import { useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { GraduationCap, ImageUp, Pencil, Plus, X } from "lucide-react";
+import { toast } from "sonner";
 import {
   adminFamiliesQuery,
   adminStudentsQuery,
@@ -10,41 +10,112 @@ import {
   uploadStudentPhoto,
   useAdminCreateStudentMutation,
   useAdminUpdateStudentMutation,
+  useReenrollStudentsMutation,
   whoamiQuery,
-} from '@/lib/data'
-import { Pagination, SearchInput } from '@/components/ListTools'
-import { matchesSearch, usePagination } from '@/lib/listing'
-import type { AdminStudentRow } from '@/lib/fees'
-import { can } from '@/lib/fees'
-import { Badge, Button, Card, EmptyState, Input, Label, SectionTitle, Select } from '@/components/ui'
+} from "@/lib/data";
+import { Pagination, SearchInput } from "@/components/ListTools";
+import { matchesSearch, usePagination } from "@/lib/listing";
+import type { AdminStudentRow } from "@/lib/fees";
+import { can } from "@/lib/fees";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  Label,
+  SectionTitle,
+  Select,
+} from "@/components/ui";
 
-export const Route = createFileRoute('/admin/eleves')({
+export const Route = createFileRoute("/admin/eleves")({
   component: AdminStudents,
-})
+});
 
 function AdminStudents() {
-  const whoami = useQuery(whoamiQuery)
-  const students = useQuery(adminStudentsQuery)
-  const refs = useQuery(refsQuery)
-  const families = useQuery(adminFamiliesQuery)
+  const whoami = useQuery(whoamiQuery);
+  const students = useQuery(adminStudentsQuery);
+  const refs = useQuery(refsQuery);
+  const families = useQuery(adminFamiliesQuery);
 
-  const [modal, setModal] = useState<{ mode: 'create' } | { mode: 'edit'; student: AdminStudentRow } | null>(null)
-  const [search, setSearch] = useState('')
-  const [classFilter, setClassFilter] = useState('')
+  const [modal, setModal] = useState<
+    { mode: "create" } | { mode: "edit"; student: AdminStudentRow } | null
+  >(null);
+  const [search, setSearch] = useState("");
+  const [classFilter, setClassFilter] = useState("");
+  // '' = inscrits de l'année active, 'archived' = à réinscrire, '*' = tous, sinon une année précise.
+  const [yearFilter, setYearFilter] = useState("");
+  const activeYear = refs.data?.school.year ?? "";
+  const reenroll = useReenrollStudentsMutation();
+  const [selected, setSelected] = useState<Record<string, string>>({});
 
+  const allStudents = useMemo(() => students.data ?? [], [students.data]);
+  const years = useMemo(
+    () =>
+      [...new Set(allStudents.map((s) => s.school_year).filter((y): y is string => !!y))]
+        .sort()
+        .reverse(),
+    [allStudents],
+  );
+  const classes = useMemo(
+    () => [...(refs.data?.classes ?? [])].sort((a, b) => Number(a.id) - Number(b.id)),
+    [refs.data],
+  );
+
+  /** Classe proposée à la réinscription : la suivante dans l'ordre des classes. */
+  function suggestedClass(classId: string | null): string {
+    const i = classes.findIndex((c) => c.id === classId);
+    if (i === -1) return classes[0]?.id ?? "";
+    return classes[Math.min(i + 1, classes.length - 1)].id;
+  }
+
+  const archivedView = yearFilter === "archived";
   const filtered = useMemo(
     () =>
-      (students.data ?? []).filter(
-        (s) =>
-          (classFilter === '' || s.class_id === classFilter) &&
-          matchesSearch(search, [s.full_name, s.matricule, s.class_name, s.parent_name]),
-      ),
-    [students.data, search, classFilter],
-  )
-  const paging = usePagination(filtered, `${search}|${classFilter}`)
+      allStudents.filter((s) => {
+        if (yearFilter === "" && !s.enrolled) return false;
+        if (yearFilter === "archived" && (s.enrolled || s.school_year === activeYear)) return false;
+        if (
+          yearFilter !== "" &&
+          yearFilter !== "archived" &&
+          yearFilter !== "*" &&
+          s.school_year !== yearFilter
+        )
+          return false;
+        return (
+          (classFilter === "" || s.class_id === classFilter) &&
+          matchesSearch(search, [s.full_name, s.matricule, s.class_name, s.parent_name])
+        );
+      }),
+    [allStudents, search, classFilter, yearFilter, activeYear],
+  );
+  const paging = usePagination(filtered, `${search}|${classFilter}|${yearFilter}`);
+  const selectedCount = Object.keys(selected).length;
 
-  const canCreate = can(whoami.data, 'eleves', 'create')
-  const canUpdate = can(whoami.data, 'eleves', 'update')
+  function toggle(id: string, classId: string | null) {
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[id]) delete next[id];
+      else next[id] = suggestedClass(classId);
+      return next;
+    });
+  }
+
+  function reenrollSelected() {
+    const items = Object.entries(selected).map(([id, class_id]) => ({ id, class_id }));
+    if (items.length === 0) return;
+    reenroll.mutate(items, {
+      onSuccess: (res) => {
+        toast.success(`${res.reenrolled} élève(s) réinscrit(s) pour ${activeYear}`);
+        setSelected({});
+      },
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "Réinscription impossible"),
+    });
+  }
+
+  const canCreate = can(whoami.data, "eleves", "create");
+  const canUpdate = can(whoami.data, "eleves", "update");
 
   return (
     <div className="space-y-6">
@@ -52,7 +123,7 @@ function AdminStudents() {
         title="Élèves"
         subtitle="Catalogue des élèves, classes et statuts"
         action={
-          <Button onClick={() => setModal({ mode: 'create' })} disabled={!canCreate}>
+          <Button onClick={() => setModal({ mode: "create" })} disabled={!canCreate}>
             <Plus className="size-4" /> Ajouter un élève
           </Button>
         }
@@ -72,15 +143,47 @@ function AdminStudents() {
           className="flex-1"
         />
         <Select
+          value={yearFilter}
+          onChange={(e) => {
+            setYearFilter(e.target.value);
+            setSelected({});
+          }}
+          className="sm:w-64"
+          aria-label="Année académique"
+          options={[
+            { value: "", label: `Inscrits ${activeYear}` },
+            { value: "archived", label: "Archivés (à réinscrire)" },
+            ...years.map((y) => ({ value: y, label: `Année ${y}` })),
+            { value: "*", label: "Toutes les années" },
+          ]}
+        />
+        <Select
           value={classFilter}
           onChange={(e) => setClassFilter(e.target.value)}
           className="sm:w-56"
           options={[
-            { value: '', label: 'Toutes les classes' },
+            { value: "", label: "Toutes les classes" },
             ...(refs.data?.classes ?? []).map((c) => ({ value: c.id, label: c.name })),
           ]}
         />
       </div>
+
+      {archivedView && (
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-900">
+            Élèves des années précédentes, non encore inscrits pour <strong>{activeYear}</strong>.
+            Cochez-les, vérifiez la classe proposée, puis réinscrivez-les : ils gardent leur
+            matricule et leur historique.
+          </p>
+          <Button
+            onClick={reenrollSelected}
+            disabled={!canUpdate || selectedCount === 0}
+            loading={reenroll.isPending}
+          >
+            Réinscrire {selectedCount > 0 ? `(${selectedCount})` : ""}
+          </Button>
+        </Card>
+      )}
 
       <Card className="p-0">
         {students.isPending ? (
@@ -98,28 +201,62 @@ function AdminStudents() {
                 key={s.id}
                 className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-slate-900">{s.full_name}</span>
-                    {s.status === 'inactive' ? (
-                      <Badge tone="slate">Inactif</Badge>
-                    ) : (
-                      <Badge tone="emerald">Actif</Badge>
+                <div className="flex min-w-0 items-start gap-3">
+                  {archivedView && canUpdate && (
+                    <input
+                      type="checkbox"
+                      checked={!!selected[s.id]}
+                      onChange={() => toggle(s.id, s.class_id)}
+                      className="mt-1 size-4 accent-brand-500"
+                      aria-label={`Sélectionner ${s.full_name}`}
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-slate-900">{s.full_name}</span>
+                      {!s.enrolled && s.status === "active" && (
+                        <Badge tone="slate">Archivé · {s.school_year ?? "—"}</Badge>
+                      )}
+                      {s.status === "inactive" ? (
+                        <Badge tone="slate">Inactif</Badge>
+                      ) : (
+                        <Badge tone="emerald">Actif</Badge>
+                      )}
+                      {s.is_exempt && <Badge tone="amber">Exonéré</Badge>}
+                      {s.is_teacher_child && <Badge tone="sky">Enfant d’enseignant</Badge>}
+                      {s.is_entitled && <Badge tone="sky">Ayant droit</Badge>}
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-slate-500">
+                      <span className="font-mono text-xs text-slate-400">{s.matricule}</span>
+                      <span>{s.class_name ?? "Aucune classe"}</span>
+                      <span>
+                        {s.parent_name ? `Parent : ${s.parent_name}` : "Sans famille rattachée"}
+                      </span>
+                    </div>
+                    {archivedView && selected[s.id] && (
+                      <div className="mt-2 flex items-center gap-2 text-sm">
+                        <span className="text-slate-500">Classe {activeYear} :</span>
+                        <Select
+                          value={selected[s.id]}
+                          onChange={(e) =>
+                            setSelected((prev) => ({ ...prev, [s.id]: e.target.value }))
+                          }
+                          className="w-44"
+                          aria-label="Classe de réinscription"
+                          options={classes.map((c) => ({ value: c.id, label: c.name }))}
+                        />
+                      </div>
                     )}
-                    {s.is_exempt && <Badge tone="amber">Exonéré</Badge>}
-                    {s.is_teacher_child && <Badge tone="sky">Enfant d’enseignant</Badge>}
-                    {s.is_entitled && <Badge tone="sky">Ayant droit</Badge>}
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-slate-500">
-                    <span className="font-mono text-xs text-slate-400">{s.matricule}</span>
-                    <span>{s.class_name ?? 'Aucune classe'}</span>
-                    <span>{s.parent_name ? `Parent : ${s.parent_name}` : 'Sans famille rattachée'}</span>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Badge tone="sky">{s.gender ?? '—'}</Badge>
+                  <Badge tone="sky">{s.gender ?? "—"}</Badge>
                   {canUpdate && (
-                    <Button variant="subtle" size="sm" onClick={() => setModal({ mode: 'edit', student: s })}>
+                    <Button
+                      variant="subtle"
+                      size="sm"
+                      onClick={() => setModal({ mode: "edit", student: s })}
+                    >
                       <Pencil className="size-4" /> Modifier
                     </Button>
                   )}
@@ -127,7 +264,9 @@ function AdminStudents() {
               </div>
             ))}
             {filtered.length === 0 && (
-              <p className="p-6 text-center text-sm text-slate-500">Aucun élève ne correspond à la recherche.</p>
+              <p className="p-6 text-center text-sm text-slate-500">
+                Aucun élève ne correspond à la recherche.
+              </p>
             )}
           </div>
         )}
@@ -137,94 +276,102 @@ function AdminStudents() {
       {modal && (
         <StudentFormDialog
           mode={modal.mode}
-          isSuperadmin={whoami.data?.role === 'superadmin'}
-          student={modal.mode === 'edit' ? modal.student : undefined}
+          isSuperadmin={whoami.data?.role === "superadmin"}
+          student={modal.mode === "edit" ? modal.student : undefined}
           classes={refs.data?.classes ?? []}
           families={families.data ?? []}
           onClose={() => setModal(null)}
         />
       )}
     </div>
-  )
+  );
 }
 
 interface StudentFormDialogProps {
-  mode: 'create' | 'edit'
-  student?: AdminStudentRow
-  classes: { id: string; name: string; section?: string }[]
-  families: { profile: { id: string; full_name: string; phone: string | null } }[]
-  isSuperadmin?: boolean
-  onClose: () => void
+  mode: "create" | "edit";
+  student?: AdminStudentRow;
+  classes: { id: string; name: string; section?: string }[];
+  families: { profile: { id: string; full_name: string; phone: string | null } }[];
+  isSuperadmin?: boolean;
+  onClose: () => void;
 }
 
-function StudentFormDialog({ mode, student, classes, families, isSuperadmin = false, onClose }: StudentFormDialogProps) {
-  const create = useAdminCreateStudentMutation()
-  const update = useAdminUpdateStudentMutation()
+function StudentFormDialog({
+  mode,
+  student,
+  classes,
+  families,
+  isSuperadmin = false,
+  onClose,
+}: StudentFormDialogProps) {
+  const create = useAdminCreateStudentMutation();
+  const update = useAdminUpdateStudentMutation();
 
-  const [firstName, setFirstName] = useState(student?.first_name ?? '')
-  const [lastName, setLastName] = useState(student?.last_name ?? '')
-  const [postnom, setPostnom] = useState(student?.postnom ?? '')
-  const [gender, setGender] = useState<'M' | 'F' | ''>(student?.gender ?? '')
-  const [classId, setClassId] = useState(student?.class_id ?? '')
-  const [status, setStatus] = useState<'active' | 'inactive'>(student?.status ?? 'active')
-  const [isExempt, setIsExempt] = useState(student?.is_exempt ?? false)
-  const [isTeacherChild, setIsTeacherChild] = useState(student?.is_teacher_child ?? false)
-  const [isEntitled, setIsEntitled] = useState(student?.is_entitled ?? false)
-  const [photo, setPhoto] = useState(student?.photo_url ?? '')
-  const [familyId, setFamilyId] = useState(student?.family_id ?? '')
-  const [uploading, setUploading] = useState(false)
+  const [firstName, setFirstName] = useState(student?.first_name ?? "");
+  const [lastName, setLastName] = useState(student?.last_name ?? "");
+  const [postnom, setPostnom] = useState(student?.postnom ?? "");
+  const [gender, setGender] = useState<"M" | "F" | "">(student?.gender ?? "");
+  const [classId, setClassId] = useState(student?.class_id ?? "");
+  const [status, setStatus] = useState<"active" | "inactive">(student?.status ?? "active");
+  const [isExempt, setIsExempt] = useState(student?.is_exempt ?? false);
+  const [isTeacherChild, setIsTeacherChild] = useState(student?.is_teacher_child ?? false);
+  const [isEntitled, setIsEntitled] = useState(student?.is_entitled ?? false);
+  const [photo, setPhoto] = useState(student?.photo_url ?? "");
+  const [familyId, setFamilyId] = useState(student?.family_id ?? "");
+  const [uploading, setUploading] = useState(false);
   // Identité (noms, genre, famille) : figée après création, sauf pour le superadmin.
-  const locked = mode === 'edit' && !isSuperadmin
+  const locked = mode === "edit" && !isSuperadmin;
 
   async function pickPhoto(file: File | undefined) {
-    if (!file) return
-    setUploading(true)
+    if (!file) return;
+    setUploading(true);
     try {
-      setPhoto(await uploadStudentPhoto(file))
+      setPhoto(await uploadStudentPhoto(file));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Échec de l’envoi de la photo')
+      toast.error(err instanceof Error ? err.message : "Échec de l’envoi de la photo");
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
   }
 
-  const busy = create.isPending || update.isPending
+  const busy = create.isPending || update.isPending;
 
   const classOptions: { value: string; label: string; disabled?: boolean }[] = [
-    { value: '', label: 'Choisir une classe', disabled: true },
+    { value: "", label: "Choisir une classe", disabled: true },
     ...classes.map((c) => ({
       value: c.id,
-      label: `${c.name}${c.section ? ` — ${c.section}` : ''}`.trim(),
+      label: `${c.name}${c.section ? ` — ${c.section}` : ""}`.trim(),
     })),
-  ]
+  ];
 
   function submit() {
-    if (mode === 'create' && (!firstName.trim() || !lastName.trim())) {
-      toast.warning('Le prénom et le nom sont requis.')
-      return
+    if (mode === "create" && (!firstName.trim() || !lastName.trim())) {
+      toast.warning("Le prénom et le nom sont requis.");
+      return;
     }
-    if (mode === 'create' && !gender) {
-      toast.warning('Choisissez le genre.')
-      return
+    if (mode === "create" && !gender) {
+      toast.warning("Choisissez le genre.");
+      return;
     }
     if (!classId) {
-      toast.warning('Choisissez une classe.')
-      return
+      toast.warning("Choisissez une classe.");
+      return;
     }
-    if (mode === 'create' && !familyId) {
-      toast.warning('Choisissez la famille de l’élève.')
-      return
+    if (mode === "create" && !familyId) {
+      toast.warning("Choisissez la famille de l’élève.");
+      return;
     }
 
     const options = {
       onSuccess: () => {
-        toast.success(mode === 'create' ? 'Élève ajouté' : 'Élève mis à jour')
-        onClose()
+        toast.success(mode === "create" ? "Élève ajouté" : "Élève mis à jour");
+        onClose();
       },
-      onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erreur d’enregistrement'),
-    }
+      onError: (err: unknown) =>
+        toast.error(err instanceof Error ? err.message : "Erreur d’enregistrement"),
+    };
 
-    if (mode === 'create') {
+    if (mode === "create") {
       create.mutate(
         {
           first_name: firstName.trim(),
@@ -238,7 +385,7 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
           photo: photo.trim() || null,
         },
         options,
-      )
+      );
     } else if (student) {
       update.mutate(
         {
@@ -262,7 +409,7 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
           },
         },
         options,
-      )
+      );
     }
   }
 
@@ -280,7 +427,7 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
         </button>
 
         <h2 className="text-xl font-bold text-slate-900">
-          {mode === 'create' ? 'Ajouter un élève' : `Modifier — ${student?.full_name}`}
+          {mode === "create" ? "Ajouter un élève" : `Modifier — ${student?.full_name}`}
         </h2>
 
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -323,11 +470,11 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
               id="student-gender"
               value={gender}
               disabled={locked}
-              onChange={(e) => setGender(e.target.value as 'M' | 'F' | '')}
+              onChange={(e) => setGender(e.target.value as "M" | "F" | "")}
               options={[
-                { value: '', label: 'À choisir', disabled: true },
-                { value: 'F', label: 'Fille (F)' },
-                { value: 'M', label: 'Garçon (M)' },
+                { value: "", label: "À choisir", disabled: true },
+                { value: "F", label: "Fille (F)" },
+                { value: "M", label: "Garçon (M)" },
               ]}
             />
           </div>
@@ -350,31 +497,31 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
             disabled={locked}
             onChange={(e) => setFamilyId(e.target.value)}
             options={[
-              { value: '', label: 'À choisir', disabled: true },
+              { value: "", label: "À choisir", disabled: true },
               ...families.map((f) => ({
                 value: f.profile.id,
-                label: `${f.profile.full_name}${f.profile.phone ? ` · ${f.profile.phone}` : ''}`,
+                label: `${f.profile.full_name}${f.profile.phone ? ` · ${f.profile.phone}` : ""}`,
               })),
             ]}
           />
-          {mode === 'create' && families.length === 0 && (
+          {mode === "create" && families.length === 0 && (
             <p className="mt-1 text-xs text-amber-700">
               Aucune famille enregistrée : le parent doit d’abord créer son compte.
             </p>
           )}
         </div>
 
-        {mode === 'edit' && (
+        {mode === "edit" && (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="student-status">Statut</Label>
               <Select
                 id="student-status"
                 value={status}
-                onChange={(e) => setStatus(e.target.value as 'active' | 'inactive')}
+                onChange={(e) => setStatus(e.target.value as "active" | "inactive")}
                 options={[
-                  { value: 'active', label: 'Actif' },
-                  { value: 'inactive', label: 'Inactif' },
+                  { value: "active", label: "Actif" },
+                  { value: "inactive", label: "Inactif" },
                 ]}
               />
             </div>
@@ -393,7 +540,9 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
         )}
 
         <fieldset className="mt-4 space-y-2 rounded-xl border border-slate-200 p-3">
-          <legend className="px-1 text-xs font-medium uppercase tracking-wider text-slate-500">Statut particulier</legend>
+          <legend className="px-1 text-xs font-medium uppercase tracking-wider text-slate-500">
+            Statut particulier
+          </legend>
           <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
             <input
               type="checkbox"
@@ -403,7 +552,9 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
             />
             <span>
               Enfant d’enseignant
-              <span className="block text-xs text-slate-500">Ne paie pas les frais d’ouverture de dossier.</span>
+              <span className="block text-xs text-slate-500">
+                Ne paie pas les frais d’ouverture de dossier.
+              </span>
             </span>
           </label>
           <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
@@ -415,7 +566,9 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
             />
             <span>
               Ayant droit
-              <span className="block text-xs text-slate-500">Paie les frais connexes, pas le minerval.</span>
+              <span className="block text-xs text-slate-500">
+                Paie les frais connexes, pas le minerval.
+              </span>
             </span>
           </label>
         </fieldset>
@@ -439,7 +592,8 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
                 htmlFor="student-photo"
                 className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                <ImageUp className="size-4" /> {uploading ? 'Envoi…' : photo ? 'Changer la photo' : 'Joindre une photo'}
+                <ImageUp className="size-4" />{" "}
+                {uploading ? "Envoi…" : photo ? "Changer la photo" : "Joindre une photo"}
               </label>
               <input
                 id="student-photo"
@@ -450,7 +604,7 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
                 onChange={(e) => pickPhoto(e.target.files?.[0])}
               />
               {photo && (
-                <Button variant="ghost" size="sm" onClick={() => setPhoto('')}>
+                <Button variant="ghost" size="sm" onClick={() => setPhoto("")}>
                   Retirer
                 </Button>
               )}
@@ -464,10 +618,10 @@ function StudentFormDialog({ mode, student, classes, families, isSuperadmin = fa
             Annuler
           </Button>
           <Button onClick={submit} loading={busy} disabled={uploading}>
-            {mode === 'create' ? 'Ajouter' : 'Enregistrer'}
+            {mode === "create" ? "Ajouter" : "Enregistrer"}
           </Button>
         </div>
       </div>
     </div>
-  )
+  );
 }

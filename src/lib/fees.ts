@@ -89,6 +89,8 @@ export interface Student {
   matricule: string
   class_id: string
   school_year: string
+  /** Inscrit pour l'année active (sinon archivé, à réinscrire). */
+  enrolled?: boolean
   photo_url: string | null
   created_at: string
   is_exempt?: boolean
@@ -207,6 +209,8 @@ export interface FamilyPayload {
   finance: FamilyFinance
   payments: Payment[]
   notifications: NotificationRow[]
+  /** Enfants d'une année précédente, pas encore réinscrits. */
+  archived?: (Student & { class_name?: string | null })[]
 }
 
 export interface StudentPayload {
@@ -283,6 +287,15 @@ export interface AuditEntry {
   created_at: string
 }
 
+export interface SchoolYearRow {
+  id: string
+  name: string
+  starts_on: string | null
+  ends_on: string | null
+  is_active: boolean
+  students: number
+}
+
 export interface SettingsPayload {
   feeSettings: FeeControl[]
   classes: ClassRow[]
@@ -290,6 +303,7 @@ export interface SettingsPayload {
   periods: PeriodRow[]
   school_year: string
   current_term: number
+  years: SchoolYearRow[]
 }
 
 export interface DiscountRules {
@@ -334,6 +348,8 @@ export interface AdminStudentRow {
   gender: 'M' | 'F' | null
   matricule: string
   status: 'active' | 'inactive'
+  school_year?: string | null
+  enrolled?: boolean
   is_exempt: boolean
   is_teacher_child?: boolean
   is_entitled?: boolean

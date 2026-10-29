@@ -18,6 +18,7 @@ import type {
   Profile,
   RefsPayload,
   SettingsInput,
+  SchoolYearRow,
   SettingsPayload,
   SolvencyReport,
   StudentFinance,
@@ -329,6 +330,41 @@ export function useUpdateSettingsMutation() {
       queryClient.invalidateQueries({ queryKey: ['refs'] })
       queryClient.invalidateQueries({ queryKey: ['family'] })
     },
+  })
+}
+
+export function useCreateSchoolYearMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { name: string; starts_on: string | null; ends_on: string | null; activate?: boolean }) =>
+      api<{ years: SchoolYearRow[] }>('/admin/school-years', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] }),
+  })
+}
+
+export function useActivateSchoolYearMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api<{ years: SchoolYearRow[] }>(`/admin/school-years/${id}/activate`, { method: 'POST' }),
+    onSuccess: () => invalidateAll(queryClient),
+  })
+}
+
+export function useReenrollStudentsMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (items: { id: string; class_id: string }[]) =>
+      api<{ reenrolled: number }>('/admin/students/reenroll', { method: 'POST', body: JSON.stringify({ items }) }),
+    onSuccess: () => invalidateAll(queryClient),
+  })
+}
+
+export function useFamilyReenrollMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, class_id }: { id: string; class_id: string }) =>
+      api<StudentPayload>(`/students/${id}/reenroll`, { method: 'POST', body: JSON.stringify({ class_id }) }),
+    onSuccess: () => invalidateAll(queryClient),
   })
 }
 

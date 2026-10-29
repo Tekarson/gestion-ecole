@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\TermPeriod;
+use App\Support\SchoolContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 
@@ -183,7 +184,7 @@ class FeeService
     {
         $family = Family::with(['students.schoolClass', 'students.payments'])->findOrFail($familyId);
         $students = $family->students()
-            ->where('status', 'active')
+            ->enrolled()
             ->orderBy('id')
             ->get();
 
@@ -226,7 +227,10 @@ class FeeService
         $totalGross = round(($minervalGross + $fixedGross + $otherGross + $booksGross + $enrollmentGross) * 100) / 100;
         $totalNet = round(($totalGross - $discount) * 100) / 100;
 
-        $totalPaid = round($family->payments()->where('status', 'confirmed')->sum('amount') * 100) / 100;
+        $totalPaid = round($family->payments()
+            ->where('status', 'confirmed')
+            ->where(fn ($q) => $q->where('school_year', SchoolContext::activeYear())->orWhereNull('school_year'))
+            ->sum('amount') * 100) / 100;
 
         // Per child, the family discount is shared proportionally to his/her minerval.
         foreach ($children as $i => $child) {
@@ -292,7 +296,7 @@ class FeeService
      */
     public function exemptStudentIds(int|string|null $familyId = null): array
     {
-        $query = Student::query()->where('status', 'active');
+        $query = Student::query()->enrolled();
 
         if ($familyId !== null) {
             $query->where('family_id', $familyId);
@@ -351,6 +355,7 @@ class FeeService
         $class = $student->schoolClass;
         $payments = Payment::where('student_id', $student->id)
             ->where('status', 'confirmed')
+            ->where(fn ($q) => $q->where('school_year', SchoolContext::activeYear())->orWhereNull('school_year'))
             ->get();
         $grouped = $this->groupPaidByNature($payments);
 
@@ -386,7 +391,7 @@ class FeeService
         }
 
         $siblings = Student::where('family_id', $student->family_id)
-            ->where('status', 'active')
+            ->enrolled()
             ->orderBy('id')
             ->get();
 
@@ -400,9 +405,14 @@ class FeeService
 
     protected function groupPaidByNature(Collection $payments): array
     {
+        $year = SchoolContext::activeYear();
         $grouped = [];
         foreach ($payments as $payment) {
             if ((string) $payment->status !== 'confirmed') {
+                continue;
+            }
+            // Seuls les paiements de l'année active comptent (les autres sont archivés).
+            if ($payment->school_year !== null && (string) $payment->school_year !== $year) {
                 continue;
             }
             $nature = $payment->category;

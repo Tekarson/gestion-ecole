@@ -68,6 +68,21 @@ class StudentController extends Controller
         return response()->json($this->payload($student, $fees), 201);
     }
 
+    /**
+     * Le parent réinscrit un enfant d'une année précédente pour l'année active.
+     */
+    public function reenroll(Request $request, FeeService $fees, \App\Services\SchoolYearService $years, string $student): JsonResponse
+    {
+        $student = $this->familyStudent($request, $student);
+        $data = $request->validate([
+            'class_id' => ['required', 'exists:school_classes,id'],
+        ]);
+
+        $years->reenroll([['id' => $student->id, 'class_id' => $data['class_id']]], $request->user()?->id);
+
+        return response()->json($this->payload($student->fresh(), $fees));
+    }
+
     protected function payload(Student $student, FeeService $fees): array
     {
         $finance = $fees->studentFinance($student);

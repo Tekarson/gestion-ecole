@@ -24,7 +24,7 @@ class CheckDeadlines extends Command
         $sent = 0;
 
         $students = Student::with('family', 'schoolClass', 'payments')
-            ->where('status', 'active')
+            ->enrolled()
             ->orderBy('id')
             ->get();
 

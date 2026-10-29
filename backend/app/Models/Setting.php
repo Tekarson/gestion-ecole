@@ -47,5 +47,12 @@ class Setting extends Model
         $stored = json_encode($value, JSON_UNESCAPED_UNICODE);
 
         static::updateOrCreate(['key' => $key], ['value' => $stored]);
+
+        // L'année active est portée par la table des années académiques.
+        if ($key === 'school_year' && is_string($value) && $value !== '' && \Illuminate\Support\Facades\Schema::hasTable('school_years')) {
+            SchoolYear::query()->where('name', '!=', $value)->update(['is_active' => false]);
+            SchoolYear::updateOrCreate(['name' => $value], ['is_active' => true]);
+            \App\Support\SchoolContext::forget();
+        }
     }
 }

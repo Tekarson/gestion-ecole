@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -13,7 +14,8 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { familyQuery } from '@/lib/data'
+import { toast } from 'sonner'
+import { familyQuery, refsQuery, useFamilyReenrollMutation } from '@/lib/data'
 import { dateFr, fmt, natureLabel, studentDisplayName, type FamilyChild, type FamilyPayload } from '@/lib/fees'
 import {
   Badge,
@@ -21,6 +23,7 @@ import {
   Card,
   EmptyState,
   SectionTitle,
+  Select,
   StatCard,
   StatusBadge,
 } from '@/components/ui'
@@ -81,6 +84,8 @@ function FamilyDashboard() {
           <ArrowRight className="size-4 text-rose-700" />
         </Link>
       )}
+
+      {(data.archived ?? []).length > 0 && <ReenrollCard year={data.school_year} archived={data.archived ?? []} />}
 
       {exemptChildren.length > 0 && (
         <div className="glass flex items-start gap-3 border-emerald-200 bg-emerald-50 p-4">
@@ -335,6 +340,74 @@ export function OkChip() {
     <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
       <BadgeCheck className="size-4" /> Soldé
     </span>
+  )
+}
+
+function ReenrollCard({
+  year,
+  archived,
+}: {
+  year: string
+  archived: NonNullable<FamilyPayload['archived']>
+}) {
+  const refs = useQuery(refsQuery)
+  const reenroll = useFamilyReenrollMutation()
+  const classes = [...(refs.data?.classes ?? [])].sort((a, b) => Number(a.id) - Number(b.id))
+  const [choice, setChoice] = useState<Record<string, string>>({})
+
+  function nextClass(classId: string): string {
+    const i = classes.findIndex((c) => c.id === classId)
+    return i === -1 ? '' : classes[Math.min(i + 1, classes.length - 1)].id
+  }
+
+  return (
+    <Card className="border-amber-200 bg-amber-50 p-5">
+      <div className="font-semibold text-amber-900">Réinscription pour l’année {year}</div>
+      <p className="mt-1 text-sm text-amber-800">
+        Ces enfants étaient inscrits l’année précédente. Réinscrivez-les en un clic : ils gardent leur matricule.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {archived.map((s) => {
+          const classId = choice[s.id] ?? nextClass(s.class_id)
+          return (
+            <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white px-3 py-2">
+              <div className="text-sm">
+                <span className="font-medium text-slate-900">{studentDisplayName(s)}</span>
+                <span className="ml-2 text-xs text-slate-500">
+                  {s.matricule} · {s.school_year}
+                  {s.class_name ? ` · ${s.class_name}` : ''}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={classId}
+                  onChange={(e) => setChoice((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                  className="w-40"
+                  aria-label="Classe pour la nouvelle année"
+                  options={[{ value: '', label: 'Classe…', disabled: true }, ...classes.map((c) => ({ value: c.id, label: c.name }))]}
+                />
+                <Button
+                  size="sm"
+                  disabled={!classId}
+                  loading={reenroll.isPending && reenroll.variables?.id === s.id}
+                  onClick={() =>
+                    reenroll.mutate(
+                      { id: s.id, class_id: classId },
+                      {
+                        onSuccess: () => toast.success(`${studentDisplayName(s)} est réinscrit(e) pour ${year}`),
+                        onError: (err) => toast.error(err instanceof Error ? err.message : 'Réinscription impossible'),
+                      },
+                    )
+                  }
+                >
+                  Réinscrire
+                </Button>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </Card>
   )
 }
 

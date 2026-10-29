@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\FeeSetting;
 use App\Models\SchoolClass;
+use App\Models\SchoolYear;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\TermPeriod;
 use App\Models\User;
 use App\Services\FeeService;
 use App\Services\NotificationService;
+use App\Services\SchoolYearService;
 use App\Support\Payloads;
 use App\Support\SchoolContext;
 use Illuminate\Http\JsonResponse;
@@ -31,7 +33,7 @@ class SettingsController extends Controller
                 ->all(),
             'school_year' => SchoolContext::activeYear(),
             'current_term' => SchoolContext::currentTerm(),
-        ]);
+        ] + SchoolYearController::payload());
     }
 
     public function update(Request $request): JsonResponse
@@ -142,8 +144,16 @@ class SettingsController extends Controller
             }
         }
 
-        if (! empty($data['school_year'])) {
-            Setting::set('school_year', $data['school_year']);
+        // Les barèmes saisis appartiennent à l'année en cours…
+        (new SchoolYearService)->syncActiveTariffs();
+
+        // …puis, si une autre année est demandée, elle est activée (créée au besoin)
+        // avec archivage des barèmes de chaque année.
+        if (! empty($data['school_year']) && $data['school_year'] !== SchoolContext::activeYear()) {
+            $years = new SchoolYearService;
+            $target = SchoolYear::where('name', $data['school_year'])->first()
+                ?? $years->create($data['school_year'], null, null, $request->user()?->id);
+            $years->activate($target, $request->user()?->id);
         }
 
         if (isset($data['current_term'])) {
@@ -193,8 +203,11 @@ class SettingsController extends Controller
         $current = SchoolContext::activeYear();
         $next = $this->nextYear($current);
 
-        Setting::set('school_year', $next);
-        Setting::set('current_term', 1);
+        // Crée l'année suivante (avec les barèmes actuels) si besoin, puis l'active.
+        $years = new SchoolYearService;
+        $year = SchoolYear::where('name', $next)->first()
+            ?? $years->create($next, null, null, $request->user()?->id);
+        $years->activate($year, $request->user()?->id);
 
         AuditLog::create([
             'user_id' => $request->user()?->id,

@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\SchoolYear;
 use App\Models\Setting;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Runtime school context (active school year, current term) that admin users
@@ -11,11 +13,31 @@ use App\Models\Setting;
  */
 class SchoolContext
 {
+    /** Clé du mémo (dans le conteneur, donc propre à chaque requête). */
+    private const MEMO = 'school.active_year';
+
     public static function activeYear(): string
     {
-        $year = Setting::get('school_year');
+        if (app()->bound(self::MEMO)) {
+            return app(self::MEMO);
+        }
 
-        return $year !== null ? (string) $year : (string) config('services.school.year');
+        $year = null;
+        if (Schema::hasTable('school_years')) {
+            $year = SchoolYear::where('is_active', true)->value('name');
+        }
+        $year ??= Setting::get('school_year');
+        $year = $year !== null ? (string) $year : (string) config('services.school.year');
+
+        app()->instance(self::MEMO, $year);
+
+        return $year;
+    }
+
+    /** À appeler quand l'année active change. */
+    public static function forget(): void
+    {
+        app()->forgetInstance(self::MEMO);
     }
 
     public static function currentTerm(): int

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { settingsQuery, useCloseYearMutation, useDeleteClassMutation, useUpdateSettingsMutation, whoamiQuery } from '@/lib/data'
 import type { FeeCategory, SettingsClassInput, SettingsInput } from '@/lib/fees'
 import { can } from '@/lib/fees'
+import { SchoolYearsCard } from '@/components/SchoolYearsCard'
 import { Button, Card, Input, SectionTitle, Select } from '@/components/ui'
 
 export const Route = createFileRoute('/admin/parametres')({
@@ -171,7 +172,6 @@ function AdminSettings() {
         at_enrollment: p.at_enrollment,
       })),
       deletedIds,
-      school_year: schoolYear,
       current_term: currentTerm,
     }
     save.mutate(payload, {
@@ -198,21 +198,25 @@ function AdminSettings() {
         </p>
       )}
 
+      <SchoolYearsCard
+        years={settings.data?.years ?? []}
+        updatable={updatable}
+        onActivated={async () => {
+          await settings.refetch()
+          setReady(false)
+        }}
+      />
+
       <Card className="p-5">
         <div className="mb-4 flex items-center gap-2 font-semibold text-slate-900">
-          <CalendarRange className="size-4 text-brand-600" /> Année scolaire & trimestre en cours
+          <CalendarRange className="size-4 text-brand-600" /> Année active & trimestre en cours
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <div className="mb-1 text-[11px] uppercase tracking-wider text-slate-500">
-              Année scolaire
+              Année active
             </div>
-            <Input
-              value={schoolYear}
-              disabled={!updatable}
-              placeholder="Ex. 2026-2027"
-              onChange={(e) => setSchoolYear(e.target.value)}
-            />
+            <Input value={schoolYear} disabled readOnly />
           </div>
           <div>
             <div className="mb-1 text-[11px] uppercase tracking-wider text-slate-500">
@@ -432,8 +436,9 @@ function AdminSettings() {
         </div>
         <p className="text-sm text-slate-600">
           Passe l’année scolaire de{' '}
-          <strong>{(settings.data?.school_year ?? '').toString()}</strong> à la suivante et réinitialise le terme à 1.
-          Les familles sont notifiées pour la réinscription. Les élèves, classes et tarifs sont conservés.
+          <strong>{(settings.data?.school_year ?? '').toString()}</strong> à la suivante (créée au besoin avec les
+          barèmes actuels) et réinitialise le trimestre à 1. Les élèves sont archivés puis réinscrits depuis
+          « Élèves », sans être recréés ; les familles sont notifiées pour la réinscription.
         </p>
         <Button
           className="mt-4"
@@ -443,7 +448,11 @@ function AdminSettings() {
           onClick={() => {
             if (!window.confirm('Clôturer l’année scolaire actuelle et passer à l’année suivante ?')) return
             closeYear.mutate(undefined, {
-              onSuccess: () => toast.success('Année scolaire clôturée. Nouvelle année ouverte.'),
+              onSuccess: async () => {
+                await settings.refetch()
+                setReady(false)
+                toast.success('Année scolaire clôturée. Nouvelle année ouverte.')
+              },
               onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erreur lors de la clôture'),
             })
           }}

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FamilyController;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\SchoolYearController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\UserController;
@@ -29,6 +30,7 @@ Route::prefix('v1')->group(function () {
             Route::get('students', [StudentController::class, 'index']);
             Route::post('students', [StudentController::class, 'store']);
             Route::get('students/{student}', [StudentController::class, 'show']);
+            Route::post('students/{student}/reenroll', [StudentController::class, 'reenroll']);
 
             Route::get('payments', [PaymentController::class, 'index']);
             Route::post('payments', [PaymentController::class, 'store']);
@@ -46,6 +48,7 @@ Route::prefix('v1')->group(function () {
             Route::middleware('can:eleves,create')->post('admin/students', [AdminStudentController::class, 'store']);
             Route::middleware('can:eleves,update')->put('admin/students/{student}', [AdminStudentController::class, 'update']);
             Route::middleware('can:eleves,create')->post('admin/students/photo', [AdminStudentController::class, 'uploadPhoto']);
+            Route::middleware('can:eleves,update')->post('admin/students/reenroll', [AdminStudentController::class, 'reenroll']);
             Route::middleware('can:paiements,read')->get('admin/students/{student}/finance', [AdminStudentController::class, 'finance']);
             Route::middleware('can:familles,read')->get('admin/families', [FamilyController::class, 'index']);
             Route::middleware('can:paiements,read')->get('admin/payments', [AdminPaymentController::class, 'index']);
@@ -57,6 +60,10 @@ Route::prefix('v1')->group(function () {
             Route::middleware('can:parametres,read')->get('admin/settings', [SettingsController::class, 'index']);
             Route::middleware('can:parametres,update')->put('admin/settings', [SettingsController::class, 'update']);
             Route::middleware('can:parametres,update')->delete('admin/classes/{class}', [SettingsController::class, 'destroyClass']);
+            Route::middleware('can:parametres,read')->get('admin/school-years', [SchoolYearController::class, 'index']);
+            Route::middleware('can:parametres,update')->post('admin/school-years', [SchoolYearController::class, 'store']);
+            Route::middleware('can:parametres,update')->put('admin/school-years/{schoolYear}', [SchoolYearController::class, 'update']);
+            Route::middleware('can:parametres,update')->post('admin/school-years/{schoolYear}/activate', [SchoolYearController::class, 'activate']);
             Route::middleware('can:parametres,update')->post('admin/school/year-close', [SettingsController::class, 'closeYear']);
         });
 
