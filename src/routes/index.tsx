@@ -118,7 +118,7 @@ function HomePage() {
 
         <section className="grid gap-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
           <Feature icon={<Wallet className="size-5" />} title="Paiement facile" text="Espèces, Mobile Money ou carte, en quelques clics." />
-          <Feature icon={<ShieldCheck className="size-5" />} title="Place confirmée" text="Dès les frais d’inscription et la tranche 1 réglés." />
+          <Feature icon={<ShieldCheck className="size-5" />} title="Inscription confirmée" text="Dès les frais d’inscription et la tranche 1 réglés." />
           <Feature icon={<FileText className="size-5" />} title="Reçus automatiques" text="Un reçu officiel pour chaque paiement, imprimable." />
           <Feature icon={<BookOpen className="size-5" />} title="Suivi complet" text="Solde, échéances et historique visibles en permanence." />
         </section>

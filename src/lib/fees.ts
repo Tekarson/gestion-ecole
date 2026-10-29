@@ -269,8 +269,8 @@ export interface SettingsInput {
   discountRules: DiscountRules
   periods?: PeriodInput[]
   deletedIds?: number[]
-  schoolYear?: string
-  currentTerm?: number
+  school_year?: string
+  current_term?: number
 }
 
 export interface AdminStudentRow {

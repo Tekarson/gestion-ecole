@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { HandCoins, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { adminStudentsQuery, refsQuery, useAdminCreatePaymentMutation } from '@/lib/data'
-import { fmt } from '@/lib/fees'
+import { adminStudentFinanceQuery, adminStudentsQuery, useAdminCreatePaymentMutation } from '@/lib/data'
+import { fmt, natureLabel } from '@/lib/fees'
 import { Button, Label, Select } from '@/components/ui'
+import { SearchInput } from '@/components/ListTools'
+import { matchesSearch } from '@/lib/listing'
 
 interface AdminPaymentDialogProps {
   open: boolean
@@ -14,68 +16,50 @@ interface AdminPaymentDialogProps {
 interface NatureOption {
   value: string
   label: string
-  due?: number
+  remaining: number
 }
 
 export function AdminPaymentDialog({ open, onOpenChange }: AdminPaymentDialogProps) {
-  const refs = useQuery(refsQuery)
   const students = useQuery(adminStudentsQuery)
   const create = useAdminCreatePaymentMutation()
 
   const [studentId, setStudentId] = useState('')
+  const [studentSearch, setStudentSearch] = useState('')
   const [nature, setNature] = useState('')
-  const [amount, setAmount] = useState<number>(0)
   const [method, setMethod] = useState('especes')
 
-  const { options } = useMemo(() => {
-    const classes = refs.data?.classes ?? []
-    const studentsList = students.data ?? []
-    const student = studentsList.find((s) => s.id === studentId) ?? null
-    const studentClass = student?.class_name
-      ? classes.find((c) => c.name === student.class_name) ?? null
-      : null
+  const finance = useQuery(adminStudentFinanceQuery(studentId))
 
-    const settings = refs.data?.feeSettings ?? []
-    const list: NatureOption[] = settings.map((f) => ({
-      value: f.key,
-      label: `${f.label} · ${fmt(f.amount)}`,
-      due: f.amount,
-    }))
-    if (studentClass) {
-      list.push(
-        { value: 'tranche1', label: `Tranche 1 — Minerval · ${fmt(studentClass.tranche1)}`, due: studentClass.tranche1 },
-        { value: 'tranche2', label: `Tranche 2 — Minerval · ${fmt(studentClass.tranche2)}`, due: studentClass.tranche2 },
-        { value: 'tranche3', label: `Tranche 3 — Minerval · ${fmt(studentClass.tranche3)}`, due: studentClass.tranche3 },
-      )
-      if (studentClass.books > 0) {
-        list.push({ value: 'livres', label: `Livres · ${fmt(studentClass.books)}`, due: studentClass.books })
-      }
+  // Seuls les frais encore dus par l'élève (selon sa classe et son statut) ;
+  // les tranches hors de leur fenêtre de paiement sont exclues.
+  const options = useMemo<NatureOption[]>(() => {
+    const f = finance.data
+    if (!f) return []
+    const unavailable: Record<string, boolean> = {}
+    for (const t of f.tranches) {
+      unavailable[`tranche${t.term}`] = t.status === 'a_venir' || t.status === 'echue'
     }
+    return f.lines
+      .filter((l) => l.remaining > 0 && !unavailable[l.key])
+      .map((l) => ({ value: l.key, label: `${natureLabel(l.key)} · reste ${fmt(l.remaining)}`, remaining: l.remaining }))
+  }, [finance.data])
 
-    return { cls: studentClass, options: list }
-  }, [studentId, refs.data, students.data])
+  const selected = options.find((o) => o.value === nature) ?? null
+  const amount = selected?.remaining ?? 0
 
-  const studentsList = students.data ?? []
+  const studentsList = (students.data ?? []).filter(
+    (s) => s.status === 'active' && (s.id === studentId || matchesSearch(studentSearch, [s.full_name, s.matricule, s.class_name, s.parent_name])),
+  )
 
   if (!open) return null
-
-  function selectNature(value: string) {
-    setNature(value)
-    const option = options.find((o) => o.value === value)
-    if (option?.due != null) setAmount(option.due)
-  }
 
   function submit() {
     if (!studentId) {
       toast.warning('Choisissez l’élève.')
       return
     }
-    if (!nature) {
-      toast.warning('Choisissez la nature du paiement.')
-      return
-    }
-    if (!amount || amount <= 0) {
-      toast.warning('Indiquez un montant valide.')
+    if (!nature || !selected) {
+      toast.warning('Choisissez le type des frais.')
       return
     }
     create.mutate(
@@ -86,8 +70,8 @@ export function AdminPaymentDialog({ open, onOpenChange }: AdminPaymentDialogPro
             description: 'La famille verra le reçu dans son espace.',
           })
           setStudentId('')
+          setStudentSearch('')
           setNature('')
-          setAmount(0)
           setMethod('especes')
           onOpenChange(false)
         },
@@ -117,13 +101,18 @@ export function AdminPaymentDialog({ open, onOpenChange }: AdminPaymentDialogPro
         <div className="mt-5 space-y-4">
           <div>
             <Label htmlFor="ap-student">Élève</Label>
+            <SearchInput
+              value={studentSearch}
+              onChange={setStudentSearch}
+              placeholder="Rechercher un élève…"
+              className="mb-2"
+            />
             <Select
               id="ap-student"
               value={studentId}
               onChange={(e) => {
                 setStudentId(e.target.value)
                 setNature('')
-                setAmount(0)
               }}
               options={[
                 { value: '', label: '— Choisir un élève —', disabled: true },
@@ -136,30 +125,33 @@ export function AdminPaymentDialog({ open, onOpenChange }: AdminPaymentDialogPro
           </div>
 
           <div>
-            <Label htmlFor="ap-nature">Nature du paiement</Label>
+            <Label htmlFor="ap-nature">Type des frais</Label>
             <Select
               id="ap-nature"
               value={nature}
-              onChange={(e) => selectNature(e.target.value)}
+              disabled={!studentId || finance.isPending}
+              onChange={(e) => setNature(e.target.value)}
               options={[
-                { value: '', label: '— Choisir —', disabled: true },
+                {
+                  value: '',
+                  label: !studentId
+                    ? '— Choisir d’abord l’élève —'
+                    : finance.isPending
+                      ? 'Chargement…'
+                      : options.length === 0
+                        ? 'Rien à payer pour cet élève'
+                        : '— Choisir —',
+                  disabled: true,
+                },
                 ...options.map((o) => ({ value: o.value, label: o.label })),
               ]}
             />
           </div>
 
           <div>
-            <Label htmlFor="ap-amount">Montant ({fmt(1)})</Label>
-            <input
-              id="ap-amount"
-              type="number"
-              min="1"
-              step="1"
-              className="glass-input"
-              value={amount || ''}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              placeholder="0"
-            />
+            <Label htmlFor="ap-amount">Montant</Label>
+            <input id="ap-amount" type="text" className="glass-input bg-slate-50" value={selected ? fmt(amount) : ''} readOnly placeholder="—" />
+            <p className="mt-1 text-xs text-slate-500">Montant restant dû pour ce type de frais, non modifiable.</p>
           </div>
 
           <div>
@@ -180,7 +172,7 @@ export function AdminPaymentDialog({ open, onOpenChange }: AdminPaymentDialogPro
         </div>
 
         <div className="mt-6">
-          <Button className="w-full" size="lg" loading={create.isPending} onClick={submit} disabled={!studentId}>
+          <Button className="w-full" size="lg" loading={create.isPending} onClick={submit} disabled={!studentId || !selected}>
             <HandCoins className="size-4" /> Enregistrer le paiement
           </Button>
         </div>

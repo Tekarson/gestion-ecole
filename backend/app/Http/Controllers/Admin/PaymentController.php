@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Payment;
 use App\Models\Student;
+use App\Services\FeeService;
 use App\Services\NotificationService;
 use App\Services\ReferenceService;
 use App\Support\Payloads;
@@ -30,7 +31,7 @@ class PaymentController extends Controller
         return response()->json($payments->map(fn ($p) => Payloads::payment($p)));
     }
 
-    public function store(Request $request, ReferenceService $references): JsonResponse
+    public function store(Request $request, ReferenceService $references, FeeService $fees): JsonResponse
     {
         $data = $request->validate([
             'student_id' => ['required', 'string'],
@@ -43,6 +44,15 @@ class PaymentController extends Controller
 
         if (! $student) {
             throw new NotFoundHttpException('Élève introuvable.');
+        }
+
+        // Le montant ne doit pas dépasser le solde restant du type de frais.
+        $remaining = $fees->natureRemaining($student, $data['nature']);
+        if ($remaining !== null && $remaining <= 0) {
+            abort(422, 'Ces frais sont déjà soldés pour cet élève.');
+        }
+        if ($remaining !== null && (float) $data['amount'] > $remaining + 0.001) {
+            abort(422, sprintf('Ce montant dépasse le solde restant (%s $).', number_format($remaining, 0)));
         }
 
         $payment = Payment::create([

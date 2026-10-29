@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Family;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Services\FeeService;
 use App\Services\ReferenceService;
 use App\Support\Payloads;
 use App\Support\SchoolContext;
@@ -37,8 +38,9 @@ class StudentController extends Controller
             'gender' => ['nullable', 'in:M,F'],
             'birth_date' => ['nullable', 'date'],
             'class_id' => ['required', 'string', 'exists:school_classes,id'],
-            'family_id' => ['nullable', 'string', 'exists:families,id'],
+            'family_id' => ['required', 'string', 'exists:families,id'],
             'status' => ['nullable', 'in:active,inactive'],
+            'photo' => ['nullable', 'string', 'max:1000'],
             'is_teacher_child' => ['nullable', 'boolean'],
             'is_entitled' => ['nullable', 'boolean'],
         ]);
@@ -52,7 +54,8 @@ class StudentController extends Controller
             'gender' => $data['gender'] ?? null,
             'birth_date' => $data['birth_date'] ?? null,
             'class_id' => $data['class_id'],
-            'family_id' => $data['family_id'] ?? null,
+            'family_id' => $data['family_id'],
+            'photo' => $data['photo'] ?? null,
             'matricule' => $references->nextMatricule($year),
             'is_exempt' => false,
             'is_teacher_child' => (bool) ($data['is_teacher_child'] ?? false),
@@ -67,6 +70,35 @@ class StudentController extends Controller
         ]);
 
         return response()->json(Payloads::adminStudent($student->load('schoolClass', 'family')), 201);
+    }
+
+    /**
+     * Situation financière d'un élève (lignes de frais restant à payer),
+     * utilisée par le guichet pour n'afficher que ce qui est encore dû.
+     */
+    public function finance(Student $student, FeeService $fees): JsonResponse
+    {
+        return response()->json($fees->studentFinance($student->load('schoolClass', 'payments')));
+    }
+
+    /**
+     * Téléversement d'une photo d'élève ; renvoie l'URL publique à enregistrer.
+     */
+    public function uploadPhoto(Request $request): JsonResponse
+    {
+        $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $file = $request->file('photo');
+        $dir = public_path('uploads/students');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        $name = now()->format('YmdHis').'-'.bin2hex(random_bytes(6)).'.'.strtolower($file->getClientOriginalExtension() ?: 'jpg');
+        $file->move($dir, $name);
+
+        return response()->json(['url' => url('uploads/students/'.$name)], 201);
     }
 
     public function update(Request $request, Student $student): JsonResponse

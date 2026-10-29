@@ -55,7 +55,7 @@ export function PaymentDialog({ student, cls: _cls, finance, open, onOpenChange 
 
   function submit() {
     if (!nature) {
-      toast.warning('Choisissez la nature du paiement.')
+      toast.warning('Choisissez le type des frais.')
       return
     }
     if (!amount || amount <= 0) {
@@ -126,10 +126,10 @@ export function PaymentDialog({ student, cls: _cls, finance, open, onOpenChange 
             <div className="mt-1.5 text-sm font-semibold text-slate-900">
               {finance.placeConfirmed ? (
                 <span className="inline-flex items-center gap-1 text-emerald-600">
-                  <CheckCircle2 className="size-4" /> Place confirmée
+                  <CheckCircle2 className="size-4" /> Inscription confirmée
                 </span>
               ) : (
-                'Place en attente'
+                'Inscription en attente'
               )}
             </div>
           </Card>
@@ -137,7 +137,7 @@ export function PaymentDialog({ student, cls: _cls, finance, open, onOpenChange 
 
         <div className="mt-5 space-y-4">
           <div>
-            <Label htmlFor="pay-nature">Nature du paiement</Label>
+            <Label htmlFor="pay-nature">Type des frais</Label>
             <Select
               id="pay-nature"
               value={nature}
@@ -157,18 +157,16 @@ export function PaymentDialog({ student, cls: _cls, finance, open, onOpenChange 
           </div>
 
           <div>
-            <Label htmlFor="pay-amount">Montant ({fmt(1)})</Label>
+            <Label htmlFor="pay-amount">Montant</Label>
             <input
               id="pay-amount"
-              type="number"
-              min="1"
-              max={balance}
-              step="1"
-              className="glass-input"
-              value={amount || ''}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              placeholder="0"
+              type="text"
+              className="glass-input bg-slate-50"
+              value={amount ? fmt(amount) : ''}
+              readOnly
+              placeholder="—"
             />
+            <p className="mt-1 text-xs text-slate-500">Montant restant dû pour ce type de frais.</p>
           </div>
 
           <div>
@@ -206,7 +204,7 @@ export function PaymentDialog({ student, cls: _cls, finance, open, onOpenChange 
             <dl className="space-y-2 text-sm">
               <RecapRow label="Élève" value={studentDisplayName(student)} />
               <RecapRow label="Classe" value={_cls?.name ?? '—'} />
-              <RecapRow label="Nature" value={natureLabel(nature)} />
+              <RecapRow label="Type des frais" value={natureLabel(nature)} />
               <RecapRow label="Montant" value={fmt(amount)} />
               <RecapRow label="Mode de paiement" value={methodLabel(method)} />
             </dl>

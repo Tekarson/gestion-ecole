@@ -19,6 +19,7 @@ import type {
   RefsPayload,
   SettingsInput,
   SettingsPayload,
+  StudentFinance,
   StudentPayload,
 } from './fees'
 
@@ -87,6 +88,13 @@ export const adminStudentsQuery = queryOptions({
   queryFn: () => api<AdminStudentRow[]>('/admin/students'),
   enabled: hasToken(),
 })
+
+export const adminStudentFinanceQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['admin', 'student-finance', id],
+    queryFn: () => api<StudentFinance>(`/admin/students/${id}/finance`),
+    enabled: hasToken() && id !== '',
+  })
 
 export const adminPaymentsQuery = queryOptions({
   queryKey: ['admin', 'payments'],
@@ -210,6 +218,14 @@ export function useAdminCreateStudentMutation() {
   })
 }
 
+/** Téléverse une photo d'élève et renvoie son URL publique. */
+export async function uploadStudentPhoto(file: File): Promise<string> {
+  const body = new FormData()
+  body.append('photo', file)
+  const res = await api<{ url: string }>('/admin/students/photo', { method: 'POST', body })
+  return res.url
+}
+
 export function useAdminUpdateStudentMutation() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -286,6 +302,7 @@ export function useMarkNotificationReadMutation() {
       api<{ ok: true }>(`/notifications/${id}/read`, { method: 'PATCH' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['family'] })
     },
   })
 }
@@ -302,6 +319,20 @@ export function useUpdateSettingsMutation() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] })
       queryClient.invalidateQueries({ queryKey: ['refs'] })
       queryClient.invalidateQueries({ queryKey: ['family'] })
+    },
+  })
+}
+
+export function useDeleteClassMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string | number) =>
+      api<SettingsPayload>(`/admin/classes/${id}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] })
+      queryClient.invalidateQueries({ queryKey: ['refs'] })
     },
   })
 }

@@ -126,7 +126,7 @@ function StudentDetail() {
             {finance.placeConfirmed ? (
               <>
                 <CheckCircle2 className="mx-auto size-10 text-emerald-600" />
-                <p className="mt-2 font-semibold text-slate-900">Place confirmée</p>
+                <p className="mt-2 font-semibold text-slate-900">Inscription confirmée</p>
                 <p className="mt-1 text-xs text-slate-500">
                   Frais d’inscription et 1<sup>re</sup> tranche réglés.
                 </p>
@@ -134,13 +134,24 @@ function StudentDetail() {
             ) : (
               <>
                 <div className="mx-auto size-10 rounded-full border-2 border-amber-600" />
-                <p className="mt-2 font-semibold text-slate-900">Place en attente</p>
+                <p className="mt-2 font-semibold text-slate-900">Inscription en attente</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Régliez les frais d’inscription + la tranche 1 pour confirmer la place.
+                  Réglez les frais d’ouverture de dossier + la tranche 1 pour confirmer l’inscription.
                 </p>
               </>
             )}
           </Card>
+
+          {(finance.exempt || finance.entitled || finance.teacherChild) && (
+            <Card className="border-emerald-200 bg-emerald-50 p-5">
+              <div className="text-sm font-semibold text-emerald-800">Situation particulière</div>
+              <ul className="mt-2 space-y-1 text-sm text-emerald-800">
+                {finance.exempt && <li>Exonéré(e) du minerval (6e enfant de la famille).</li>}
+                {finance.entitled && <li>Ayant droit : seuls les frais connexes sont dus, pas le minerval.</li>}
+                {finance.teacherChild && <li>Enfant d’enseignant : pas de frais d’ouverture de dossier.</li>}
+              </ul>
+            </Card>
+          )}
 
           <PaymentSummary finance={finance} />
         </div>
@@ -208,7 +219,7 @@ function FinanceBreakdown({ prefix: _p, finance }: { prefix: string; finance: St
 
 function PaymentSummary({ finance }: { finance: StudentFinance }) {
   const items = [
-    { label: 'Place', done: finance.placeConfirmed, detail: 'Ouverture de dossier + tranche 1' },
+    { label: 'Inscription', done: finance.placeConfirmed, detail: 'Ouverture de dossier + tranche 1' },
     { label: 'Frais connexes', done: finance.fixedPaid >= finance.fixedDue, detail: `${fmt(finance.fixedPaid)} / ${fmt(finance.fixedDue)}` },
     ...(finance.otherDue > 0
       ? [{ label: 'Autres frais', done: finance.otherPaid >= finance.otherDue, detail: `${fmt(finance.otherPaid)} / ${fmt(finance.otherDue)}` }]

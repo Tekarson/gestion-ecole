@@ -92,7 +92,7 @@ function AdminPayments() {
                 <th className="px-4 py-3">Référence</th>
                 <th className="px-4 py-3">Élève</th>
                 <th className="px-4 py-3">Famille</th>
-                <th className="px-4 py-3">Nature</th>
+                <th className="px-4 py-3">Type des frais</th>
                 <th className="px-4 py-3 text-right">Montant</th>
                 <th className="px-4 py-3">Moyen</th>
                 <th className="px-4 py-3">Date</th>

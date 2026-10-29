@@ -1,15 +1,19 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { GraduationCap, Pencil, Plus, X } from 'lucide-react'
+import { GraduationCap, ImageUp, Pencil, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
+  adminFamiliesQuery,
   adminStudentsQuery,
   refsQuery,
+  uploadStudentPhoto,
   useAdminCreateStudentMutation,
   useAdminUpdateStudentMutation,
   whoamiQuery,
 } from '@/lib/data'
+import { Pagination, SearchInput } from '@/components/ListTools'
+import { matchesSearch, usePagination } from '@/lib/listing'
 import type { AdminStudentRow } from '@/lib/fees'
 import { can } from '@/lib/fees'
 import { Badge, Button, Card, EmptyState, Input, Label, SectionTitle, Select } from '@/components/ui'
@@ -22,8 +26,22 @@ function AdminStudents() {
   const whoami = useQuery(whoamiQuery)
   const students = useQuery(adminStudentsQuery)
   const refs = useQuery(refsQuery)
+  const families = useQuery(adminFamiliesQuery)
 
   const [modal, setModal] = useState<{ mode: 'create' } | { mode: 'edit'; student: AdminStudentRow } | null>(null)
+  const [search, setSearch] = useState('')
+  const [classFilter, setClassFilter] = useState('')
+
+  const filtered = useMemo(
+    () =>
+      (students.data ?? []).filter(
+        (s) =>
+          (classFilter === '' || s.class_id === classFilter) &&
+          matchesSearch(search, [s.full_name, s.matricule, s.class_name, s.parent_name]),
+      ),
+    [students.data, search, classFilter],
+  )
+  const paging = usePagination(filtered, `${search}|${classFilter}`)
 
   const canCreate = can(whoami.data, 'eleves', 'create')
   const canUpdate = can(whoami.data, 'eleves', 'update')
@@ -46,6 +64,24 @@ function AdminStudents() {
         </p>
       )}
 
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher un élève, un matricule, un parent…"
+          className="flex-1"
+        />
+        <Select
+          value={classFilter}
+          onChange={(e) => setClassFilter(e.target.value)}
+          className="sm:w-56"
+          options={[
+            { value: '', label: 'Toutes les classes' },
+            ...(refs.data?.classes ?? []).map((c) => ({ value: c.id, label: c.name })),
+          ]}
+        />
+      </div>
+
       <Card className="p-0">
         {students.isPending ? (
           <div className="h-40 animate-pulse rounded-2xl bg-slate-50" />
@@ -57,7 +93,7 @@ function AdminStudents() {
           />
         ) : (
           <div className="divide-y divide-slate-200">
-            {(students.data ?? []).map((s) => (
+            {paging.pageItems.map((s) => (
               <div
                 key={s.id}
                 className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5"
@@ -90,8 +126,12 @@ function AdminStudents() {
                 </div>
               </div>
             ))}
+            {filtered.length === 0 && (
+              <p className="p-6 text-center text-sm text-slate-500">Aucun élève ne correspond à la recherche.</p>
+            )}
           </div>
         )}
+        <Pagination {...paging} />
       </Card>
 
       {modal && (
@@ -99,6 +139,7 @@ function AdminStudents() {
           mode={modal.mode}
           student={modal.mode === 'edit' ? modal.student : undefined}
           classes={refs.data?.classes ?? []}
+          families={families.data ?? []}
           onClose={() => setModal(null)}
         />
       )}
@@ -110,10 +151,11 @@ interface StudentFormDialogProps {
   mode: 'create' | 'edit'
   student?: AdminStudentRow
   classes: { id: string; name: string; section?: string }[]
+  families: { profile: { id: string; full_name: string; phone: string | null } }[]
   onClose: () => void
 }
 
-function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialogProps) {
+function StudentFormDialog({ mode, student, classes, families, onClose }: StudentFormDialogProps) {
   const create = useAdminCreateStudentMutation()
   const update = useAdminUpdateStudentMutation()
 
@@ -127,6 +169,20 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
   const [isTeacherChild, setIsTeacherChild] = useState(student?.is_teacher_child ?? false)
   const [isEntitled, setIsEntitled] = useState(student?.is_entitled ?? false)
   const [photo, setPhoto] = useState(student?.photo_url ?? '')
+  const [familyId, setFamilyId] = useState(student?.family_id ?? '')
+  const [uploading, setUploading] = useState(false)
+
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return
+    setUploading(true)
+    try {
+      setPhoto(await uploadStudentPhoto(file))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Échec de l’envoi de la photo')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const busy = create.isPending || update.isPending
 
@@ -143,8 +199,16 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
       toast.warning('Le prénom et le nom sont requis.')
       return
     }
+    if (mode === 'create' && !gender) {
+      toast.warning('Choisissez le genre.')
+      return
+    }
     if (!classId) {
       toast.warning('Choisissez une classe.')
+      return
+    }
+    if (mode === 'create' && !familyId) {
+      toast.warning('Choisissez la famille de l’élève.')
       return
     }
 
@@ -164,6 +228,7 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
           postnom: postnom.trim() || undefined,
           gender: gender || undefined,
           class_id: classId,
+          family_id: familyId,
           is_teacher_child: isTeacherChild,
           is_entitled: isEntitled,
           photo: photo.trim() || null,
@@ -247,7 +312,7 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
               disabled={mode === 'edit'}
               onChange={(e) => setGender(e.target.value as 'M' | 'F' | '')}
               options={[
-                { value: '', label: 'Non précisé' },
+                { value: '', label: 'À choisir', disabled: true },
                 { value: 'F', label: 'Fille (F)' },
                 { value: 'M', label: 'Garçon (M)' },
               ]}
@@ -262,6 +327,28 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
               options={classOptions}
             />
           </div>
+        </div>
+
+        <div className="mt-4">
+          <Label htmlFor="student-family">Famille (parent)</Label>
+          <Select
+            id="student-family"
+            value={familyId}
+            disabled={mode === 'edit'}
+            onChange={(e) => setFamilyId(e.target.value)}
+            options={[
+              { value: '', label: 'À choisir', disabled: true },
+              ...families.map((f) => ({
+                value: f.profile.id,
+                label: `${f.profile.full_name}${f.profile.phone ? ` · ${f.profile.phone}` : ''}`,
+              })),
+            ]}
+          />
+          {mode === 'create' && families.length === 0 && (
+            <p className="mt-1 text-xs text-amber-700">
+              Aucune famille enregistrée : le parent doit d’abord créer son compte.
+            </p>
+          )}
         </div>
 
         {mode === 'edit' && (
@@ -321,30 +408,49 @@ function StudentFormDialog({ mode, student, classes, onClose }: StudentFormDialo
         </fieldset>
 
         <div className="mt-4">
-          <Label htmlFor="student-photo">Photo (URL)</Label>
-          <div className="flex items-start gap-3">
-            <Input
-              id="student-photo"
-              value={photo}
-              onChange={(e) => setPhoto(e.target.value)}
-              placeholder="https://…/photo.jpg"
-            />
-            {photo && (
+          <Label htmlFor="student-photo">Photo</Label>
+          <div className="flex items-center gap-3">
+            {photo ? (
               <img
                 src={photo}
                 alt="Aperçu"
-                className="h-12 w-10 shrink-0 rounded-lg border border-slate-200 bg-white object-cover"
+                className="h-16 w-14 shrink-0 rounded-lg border border-slate-200 bg-white object-cover"
               />
+            ) : (
+              <div className="flex h-16 w-14 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 text-slate-400">
+                <ImageUp className="size-5" />
+              </div>
             )}
+            <div className="flex flex-wrap gap-2">
+              <label
+                htmlFor="student-photo"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <ImageUp className="size-4" /> {uploading ? 'Envoi…' : photo ? 'Changer la photo' : 'Joindre une photo'}
+              </label>
+              <input
+                id="student-photo"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={uploading}
+                onChange={(e) => pickPhoto(e.target.files?.[0])}
+              />
+              {photo && (
+                <Button variant="ghost" size="sm" onClick={() => setPhoto('')}>
+                  Retirer
+                </Button>
+              )}
+            </div>
           </div>
-          <p className="mt-1 text-xs text-slate-500">Laissez vide pour ne pas définir de photo.</p>
+          <p className="mt-1 text-xs text-slate-500">JPG, PNG ou WebP, 4 Mo maximum.</p>
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
             Annuler
           </Button>
-          <Button onClick={submit} loading={busy}>
+          <Button onClick={submit} loading={busy} disabled={uploading}>
             {mode === 'create' ? 'Ajouter' : 'Enregistrer'}
           </Button>
         </div>

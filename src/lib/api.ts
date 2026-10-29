@@ -21,7 +21,8 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   const token = getToken()
   const headers = new Headers(options.headers)
 
-  if (options.body != null) {
+  // FormData (photo…) : le navigateur fixe lui-même le Content-Type multipart.
+  if (options.body != null && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
   if (token) {

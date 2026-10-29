@@ -164,6 +164,30 @@ class SettingsController extends Controller
         return $this->index();
     }
 
+    /**
+     * Suppression immédiate d'une classe (refusée tant que des élèves y sont rattachés).
+     */
+    public function destroyClass(Request $request, SchoolClass $class): JsonResponse
+    {
+        $count = Student::where('class_id', $class->id)->count();
+        if ($count > 0) {
+            return response()->json([
+                'message' => "Impossible de supprimer « {$class->name} » : {$count} élève(s) y sont encore rattaché(s). Changez-les de classe d'abord.",
+            ], 409);
+        }
+
+        $name = $class->name;
+        $class->delete();
+
+        AuditLog::create([
+            'user_id' => $request->user()?->id,
+            'action' => 'class.deleted',
+            'details' => ['class' => $name],
+        ]);
+
+        return $this->index();
+    }
+
     public function closeYear(Request $request): JsonResponse
     {
         $current = SchoolContext::activeYear();

@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarRange, CalendarX2, Plus, Save, Settings2, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { settingsQuery, useCloseYearMutation, useUpdateSettingsMutation, whoamiQuery } from '@/lib/data'
+import { settingsQuery, useCloseYearMutation, useDeleteClassMutation, useUpdateSettingsMutation, whoamiQuery } from '@/lib/data'
 import type { FeeCategory, SettingsClassInput, SettingsInput } from '@/lib/fees'
 import { can } from '@/lib/fees'
 import { Button, Card, Input, SectionTitle, Select } from '@/components/ui'
@@ -55,6 +55,7 @@ function AdminSettings() {
   const whoami = useQuery(whoamiQuery)
   const save = useUpdateSettingsMutation()
   const closeYear = useCloseYearMutation()
+  const deleteClass = useDeleteClassMutation()
 
   const [fees, setFees] = useState<FeeRow[]>([])
   const [classes, setClasses] = useState<SettingsClassInput[]>([])
@@ -130,7 +131,20 @@ function AdminSettings() {
   }
 
   function removeClass(idx: number) {
-    setClasses((prev) => prev.filter((_, i) => i !== idx))
+    const target = classes[idx]
+    // Classe pas encore enregistrée : on la retire simplement du formulaire.
+    if (!target?.id) {
+      setClasses((prev) => prev.filter((_, i) => i !== idx))
+      return
+    }
+    if (!window.confirm(`Supprimer définitivement la classe « ${target.name} » ?`)) return
+    deleteClass.mutate(target.id, {
+      onSuccess: () => {
+        setClasses((prev) => prev.filter((c) => c.id !== target.id))
+        toast.success(`Classe « ${target.name} » supprimée`)
+      },
+      onError: (err) => toast.error(err instanceof Error ? err.message : 'Suppression impossible'),
+    })
   }
 
   function setPeriod(term: number, patch: Partial<{ opens_at: string; closes_at: string; at_enrollment: boolean }>) {
@@ -157,8 +171,8 @@ function AdminSettings() {
         at_enrollment: p.at_enrollment,
       })),
       deletedIds,
-      schoolYear,
-      currentTerm,
+      school_year: schoolYear,
+      current_term: currentTerm,
     }
     save.mutate(payload, {
       onSuccess: () => toast.success('Barèmes enregistrés'),

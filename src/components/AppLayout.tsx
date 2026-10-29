@@ -8,6 +8,8 @@ export interface NavItem {
   to: string
   label: string
   icon: ReactNode
+  /** Compteur affiché sur l'icône (ex. notifications non lues). */
+  badge?: number
 }
 
 interface AppLayoutProps {
@@ -165,12 +167,20 @@ function NavLink({ item, mobile = false }: { item: NavItem; mobile?: boolean }) 
     >
       <span
         className={cn(
-          'shrink-0',
+          'relative shrink-0',
           mobile ? 'text-lg' : 'text-lg xl:text-base',
           isActive ? (mobile ? 'text-brand-600' : 'text-white') : 'text-slate-400',
         )}
       >
         {item.icon}
+        {item.badge ? (
+          <span
+            className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold leading-none text-white"
+            aria-label={`${item.badge} non lue(s)`}
+          >
+            {item.badge > 99 ? '99+' : item.badge}
+          </span>
+        ) : null}
       </span>
       <span className={cn(mobile ? '' : 'hidden xl:inline')}>{item.label}</span>
     </Link>

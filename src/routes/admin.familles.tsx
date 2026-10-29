@@ -100,9 +100,9 @@ function FamilyCard({ family }: { family: AdminFamily }) {
             </div>
             <div className="flex items-center gap-2">
               {c.finance.placeConfirmed ? (
-                <Badge tone="emerald">Place ✓</Badge>
+                <Badge tone="emerald">Inscription confirmée</Badge>
               ) : (
-                <Badge tone="amber">Place ?</Badge>
+                <Badge tone="amber">Inscription en attente</Badge>
               )}
               <span className="text-xs text-slate-500">{fmt(c.finance.balance)}</span>
             </div>

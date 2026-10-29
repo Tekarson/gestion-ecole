@@ -23,12 +23,13 @@ function FamilyLayout() {
   }
 
   const profile = fam.data?.profile
+  const unread = (fam.data?.notifications ?? []).filter((n) => !n.read_at).length
 
   const nav: NavItem[] = [
     { to: '/famille', label: 'Tableau de bord', icon: <LayoutDashboard className="size-5" /> },
     { to: '/famille/inscription', label: 'Inscrire un enfant', icon: <UserPlus className="size-5" /> },
     { to: '/famille/historique', label: 'Historique', icon: <History className="size-5" /> },
-    { to: '/famille/notifications', label: 'Notifications', icon: <Bell className="size-5" /> },
+    { to: '/famille/notifications', label: 'Notifications', icon: <Bell className="size-5" />, badge: unread },
   ]
 
   return (

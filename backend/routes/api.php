@@ -44,6 +44,8 @@ Route::prefix('v1')->group(function () {
             Route::middleware('can:eleves,read')->get('admin/students', [AdminStudentController::class, 'index']);
             Route::middleware('can:eleves,create')->post('admin/students', [AdminStudentController::class, 'store']);
             Route::middleware('can:eleves,update')->put('admin/students/{student}', [AdminStudentController::class, 'update']);
+            Route::middleware('can:eleves,create')->post('admin/students/photo', [AdminStudentController::class, 'uploadPhoto']);
+            Route::middleware('can:paiements,read')->get('admin/students/{student}/finance', [AdminStudentController::class, 'finance']);
             Route::middleware('can:familles,read')->get('admin/families', [FamilyController::class, 'index']);
             Route::middleware('can:paiements,read')->get('admin/payments', [AdminPaymentController::class, 'index']);
             Route::middleware('can:paiements,create')->post('admin/payments', [AdminPaymentController::class, 'store']);
@@ -52,6 +54,7 @@ Route::prefix('v1')->group(function () {
             Route::middleware('can:journal,read')->get('admin/audit', [DashboardController::class, 'journal']);
             Route::middleware('can:parametres,read')->get('admin/settings', [SettingsController::class, 'index']);
             Route::middleware('can:parametres,update')->put('admin/settings', [SettingsController::class, 'update']);
+            Route::middleware('can:parametres,update')->delete('admin/classes/{class}', [SettingsController::class, 'destroyClass']);
             Route::middleware('can:parametres,update')->post('admin/school/year-close', [SettingsController::class, 'closeYear']);
         });
 

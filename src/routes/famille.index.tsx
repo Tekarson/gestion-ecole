@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Banknote,
+  Bell,
   CheckCircle2,
   ClipboardList,
   GraduationCap,
@@ -45,6 +46,8 @@ function FamilyDashboard() {
   const data = fam.data
   const f = data.finance
   const children = data.students
+  const unread = data.notifications.filter((n) => !n.read_at)
+  const exemptChildren = children.filter((c) => c.finance.exempt)
 
   return (
     <div className="space-y-8">
@@ -59,6 +62,37 @@ function FamilyDashboard() {
           </Link>
         }
       />
+
+      {unread.length > 0 && (
+        <Link
+          to="/famille/notifications"
+          className="glass flex items-center gap-3 border-rose-200 bg-rose-50 p-4 transition hover:bg-rose-100"
+        >
+          <span className="relative">
+            <Bell className="size-5 text-rose-700" />
+            <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-rose-600" />
+          </span>
+          <div className="flex-1 text-sm text-rose-800">
+            <span className="font-semibold">
+              Vous avez {unread.length} notification{unread.length > 1 ? 's' : ''} non lue{unread.length > 1 ? 's' : ''}.
+            </span>{' '}
+            <span className="text-rose-700">Dernière : {unread[0].title}</span>
+          </div>
+          <ArrowRight className="size-4 text-rose-700" />
+        </Link>
+      )}
+
+      {exemptChildren.length > 0 && (
+        <div className="glass flex items-start gap-3 border-emerald-200 bg-emerald-50 p-4">
+          <BadgeCheck className="mt-0.5 size-5 shrink-0 text-emerald-700" />
+          <p className="text-sm text-emerald-800">
+            <span className="font-semibold">Exonération familiale :</span>{' '}
+            {exemptChildren.map((c) => studentDisplayName(c.student)).join(', ')}{' '}
+            {exemptChildren.length > 1 ? 'sont exonérés' : 'est exonéré(e)'} du minerval
+            {f.childCount >= 6 ? ` (6e enfant d’une famille de ${f.childCount} enfants)` : ''}. Les autres frais restent dus.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -213,8 +247,9 @@ function ChildCard({ child }: { child: FamilyChild }) {
             <div className="text-xs text-slate-500">
               {child.cls ? child.cls.name : 'Classe non définie'} · {child.student.matricule}
             </div>
-            {(child.finance.teacherChild || child.finance.entitled) && (
+            {(child.finance.exempt || child.finance.teacherChild || child.finance.entitled) && (
               <div className="mt-1 flex flex-wrap gap-1">
+                {child.finance.exempt && <Badge tone="emerald">Exonéré du minerval</Badge>}
                 {child.finance.teacherChild && <Badge tone="sky">Enfant d’enseignant</Badge>}
                 {child.finance.entitled && <Badge tone="sky">Ayant droit</Badge>}
               </div>
@@ -223,10 +258,10 @@ function ChildCard({ child }: { child: FamilyChild }) {
         </div>
         {child.finance.placeConfirmed ? (
           <Badge tone="emerald">
-            <CheckCircle2 className="size-3.5" /> Place confirmée
+            <CheckCircle2 className="size-3.5" /> Inscription confirmée
           </Badge>
         ) : (
-          <Badge tone="amber">Place en attente</Badge>
+          <Badge tone="amber">Inscription en attente</Badge>
         )}
       </div>
 

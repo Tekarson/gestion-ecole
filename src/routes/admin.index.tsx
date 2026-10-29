@@ -123,13 +123,13 @@ function AdminDashboard() {
         />
         <StatCard
           icon={<GraduationCap className="size-4" />}
-          label="Places en attente"
+          label="Inscriptions en attente"
           value={stats?.pendingStudents ?? 0}
           tone="amber"
         />
         <StatCard
           icon={<CheckCheck className="size-4" />}
-          label="Places confirmées"
+          label="Inscriptions confirmées"
           value={stats?.placeConfirmed ?? 0}
           tone="emerald"
           sub="inscription + tranche 1"

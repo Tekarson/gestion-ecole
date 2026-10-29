@@ -295,4 +295,95 @@ public function testSettingsCreateAndDeleteEmptyClass(): void
             ->assertJsonPath('revenueByYear.1.year', '2025-2026')
             ->assertJsonPath('revenueByYear.1.totalPaid', 200);
     }
+
+    public function testAdminCreateStudentRequiresFamily(): void
+    {
+        $class = $this->class();
+
+        $this->withToken($this->adminToken)
+            ->postJson('/api/v1/admin/students', [
+                'first_name' => 'Grace',
+                'last_name' => 'Mwamba',
+                'gender' => 'F',
+                'class_id' => $class->id,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('family_id');
+    }
+
+    public function testDeleteClassEndpoint(): void
+    {
+        $empty = $this->class('Vide');
+        $student = $this->student();
+
+        $this->withToken($this->adminToken)
+            ->deleteJson('/api/v1/admin/classes/'.$student->class_id)
+            ->assertStatus(409);
+
+        $this->withToken($this->adminToken)
+            ->deleteJson('/api/v1/admin/classes/'.$empty->id)
+            ->assertOk();
+
+        $this->assertDatabaseMissing('school_classes', ['id' => $empty->id]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'class.deleted']);
+    }
+
+    public function testAdminFinanceListsOnlyRemainingFees(): void
+    {
+        FeeSetting::create(['label' => 'inscription', 'amount' => 200, 'category' => 'inscription', 'school_year' => '2026-2027']);
+        FeeSetting::create(['label' => 'assurance', 'amount' => 20, 'category' => 'fixed', 'school_year' => '2026-2027']);
+        $student = $this->student();
+        Payment::create([
+            'reference' => 'REC-2026-000001',
+            'family_id' => $student->family_id,
+            'student_id' => $student->id,
+            'amount' => 20,
+            'method' => 'especes',
+            'date' => now(),
+            'category' => 'assurance',
+            'status' => 'confirmed',
+        ]);
+
+        $lines = $this->withToken($this->adminToken)
+            ->getJson('/api/v1/admin/students/'.$student->id.'/finance')
+            ->assertOk()
+            ->json('lines');
+
+        $remaining = collect($lines)->where('remaining', '>', 0)->pluck('key')->all();
+        $this->assertContains('inscription', $remaining);
+        $this->assertNotContains('assurance', $remaining);
+    }
+
+    public function testAdminPaymentCannotExceedRemaining(): void
+    {
+        FeeSetting::create(['label' => 'assurance', 'amount' => 20, 'category' => 'fixed', 'school_year' => '2026-2027']);
+        $student = $this->student();
+
+        $this->withToken($this->adminToken)
+            ->postJson('/api/v1/admin/payments', [
+                'student_id' => $student->id,
+                'nature' => 'assurance',
+                'amount' => 50,
+                'method' => 'especes',
+            ])
+            ->assertStatus(422);
+
+        $this->withToken($this->adminToken)
+            ->postJson('/api/v1/admin/payments', [
+                'student_id' => $student->id,
+                'nature' => 'assurance',
+                'amount' => 20,
+                'method' => 'especes',
+            ])
+            ->assertCreated();
+
+        $this->withToken($this->adminToken)
+            ->postJson('/api/v1/admin/payments', [
+                'student_id' => $student->id,
+                'nature' => 'assurance',
+                'amount' => 20,
+                'method' => 'especes',
+            ])
+            ->assertStatus(422);
+    }
 }

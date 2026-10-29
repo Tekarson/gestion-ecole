@@ -17,3 +17,4 @@
 /composer.phar
 /Lock-File-*
 *.log
+/public/uploads
