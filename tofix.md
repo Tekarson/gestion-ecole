@@ -15,7 +15,13 @@ Le montant doit ne doit pas être modifiable.
  Coté parent, lors de la connexion, il doit voir qu'il y a quelque chose qu'il n'a pas encore lu. 
  Dans onglet famille, lorsqu'on clique sur voir les paiement, on doit voir que pour une  seule famille. 
  Le Place et Place?
- Au niveau des journal, on peut imprimer tous les opérations effectuer ces jour-là.
+ Au niveau des journal, on peut imprimer tous les opérations effectuer ces jour-là. aussi rendre cela imprimable par période ou jour.
+ aussi rajoute le rapport date des debuts et fin. nous voulons voir les paiement effectués entre le 6 septmebre et le 10 octobre.
+ On a la possibilité d'avoir les insolvables et les solvables de tous les types de frais à payer. Les imprimer surtout.
+ La possibilité de choisir type des frais à filter ou prendre tous.
+Lors de la nouvelle année, nous avons aucune donnée ils sont archivées et il faut le rendre actif pour ne pas a avoir à créer les personnes qui existent déjà.
+Partout des filtres par année academique.
+ Mettre en place la création des année académique et choisir l'actif des autres. Les frais dépendent donc de l'année académique donc il faut le lier. 
  
 
 PORTAIL FAMILLE
