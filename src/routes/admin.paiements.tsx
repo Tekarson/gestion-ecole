@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, ClipboardList, Download, Plus, Printer, Users, X, XCircle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, ClipboardList, Download, Plus, Printer, Users, X, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { adminPaymentsQuery, useUpdatePaymentStatusMutation, whoamiQuery } from '@/lib/data'
 import { downloadFile } from '@/lib/api'
@@ -57,6 +57,8 @@ function AdminPayments() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [grouped, setGrouped] = useState(false)
+  // Familles dépliées (repliées par défaut, dépliées d'office pendant une recherche).
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   const all = useMemo(() => payments.data ?? [], [payments.data])
 
@@ -246,6 +248,16 @@ function AdminPayments() {
             <input type="checkbox" checked={grouped} onChange={(e) => setGrouped(e.target.checked)} className="size-4 accent-brand-500" />
             <Users className="size-4 text-slate-500" /> Grouper par famille
           </label>
+          {grouped && (
+            <div className="flex shrink-0 gap-2">
+              <Button variant="subtle" size="sm" onClick={() => setExpanded(Object.fromEntries(groups.map((g) => [g.familyId, true])))}>
+                <ChevronDown className="size-4" /> Tout déplier
+              </Button>
+              <Button variant="subtle" size="sm" onClick={() => setExpanded(Object.fromEntries(groups.map((g) => [g.familyId, false])))}>
+                <ChevronRight className="size-4" /> Tout plier
+              </Button>
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           <div>
@@ -314,19 +326,30 @@ function AdminPayments() {
           <table className="w-full min-w-4xl text-left text-sm">
             <thead>{headers}</thead>
             {grouped ? (
-              groupPaging.pageItems.map((g) => (
-                <tbody key={g.familyId} className="divide-y divide-slate-200 border-b-2 border-slate-200">
-                  <tr className="bg-slate-50">
-                    <td colSpan={8} className="px-4 py-2 font-semibold text-slate-900">
-                      {g.parentName}
-                      <span className="ml-2 text-xs font-normal text-slate-500">
-                        {g.payments.length} paiement(s) · {fmt(g.total)} encaissé(s)
-                      </span>
-                    </td>
-                  </tr>
-                  {g.payments.map(renderRow)}
-                </tbody>
-              ))
+              groupPaging.pageItems.map((g) => {
+                const open = expanded[g.familyId] ?? search.trim() !== ''
+                return (
+                  <tbody key={g.familyId} className="divide-y divide-slate-200 border-b-2 border-slate-200">
+                    <tr className="bg-slate-50">
+                      <td colSpan={8} className="p-0">
+                        <button
+                          type="button"
+                          onClick={() => setExpanded((prev) => ({ ...prev, [g.familyId]: !open }))}
+                          aria-expanded={open}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-left font-semibold text-slate-900 hover:bg-slate-100"
+                        >
+                          {open ? <ChevronDown className="size-4 text-slate-500" /> : <ChevronRight className="size-4 text-slate-500" />}
+                          {g.parentName}
+                          <span className="text-xs font-normal text-slate-500">
+                            {g.payments.length} paiement(s) · {fmt(g.total)} encaissé(s)
+                          </span>
+                        </button>
+                      </td>
+                    </tr>
+                    {open && g.payments.map(renderRow)}
+                  </tbody>
+                )
+              })
             ) : (
               <tbody className="divide-y divide-slate-200">{rowPaging.pageItems.map(renderRow)}</tbody>
             )}
