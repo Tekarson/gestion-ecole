@@ -1,5 +1,6 @@
 import { APP_MODE } from './app-mode'
 import { clearToken, getToken } from './session'
+import { getViewYear } from './viewYear'
 
 const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api').replace(/\/+$/, '')
 
@@ -29,6 +30,11 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
     headers.set('Authorization', `Bearer ${token}`)
   }
   headers.set('X-App-Mode', APP_MODE)
+  // Année consultée dans l'administration (lectures seulement, côté serveur).
+  const viewYear = getViewYear()
+  if (viewYear && path.startsWith('/admin')) {
+    headers.set('X-School-Year', viewYear)
+  }
   headers.set('Accept', 'application/json')
 
   let res: Response

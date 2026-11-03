@@ -31,7 +31,8 @@ class DashboardController extends Controller
             ->get()
             ->map(fn ($p) => Payloads::payment($p));
 
-        $totalPaid = Payment::where('status', 'confirmed')->sum('amount');
+        // Encaissé sur l'année affichée (active, ou consultée depuis l'en-tête).
+        $totalPaid = Payment::where('status', 'confirmed')->where(fn ($q) => $fees->scopeYear($q))->sum('amount');
 
         $revenueByYear = Payment::where('status', 'confirmed')
             ->whereNotNull('school_year')

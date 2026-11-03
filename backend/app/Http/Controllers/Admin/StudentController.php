@@ -18,7 +18,7 @@ class StudentController extends Controller
 {
     public function index(): JsonResponse
     {
-        $students = Student::with(['schoolClass', 'family'])
+        $students = Student::with(['schoolClass', 'family', 'enrollments'])
             ->orderBy(SchoolClass::select('name')
                 ->whereColumn('school_classes.id', 'students.class_id')
                 ->take(1))

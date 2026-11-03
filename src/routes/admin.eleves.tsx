@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { getViewYear } from "@/lib/viewYear";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { GraduationCap, ImageUp, Pencil, Plus, X } from "lucide-react";
@@ -44,7 +45,8 @@ function AdminStudents() {
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
   // '' = inscrits de l'année active, 'archived' = à réinscrire, '*' = tous, sinon une année précise.
-  const [yearFilter, setYearFilter] = useState("");
+  // Année consultée dans l'en-tête : filtre par défaut sur cette année.
+  const [yearFilter, setYearFilter] = useState(() => getViewYear() ?? "");
   const activeYear = refs.data?.school.year ?? "";
   const reenroll = useReenrollStudentsMutation();
   const [selected, setSelected] = useState<Record<string, string>>({});
@@ -52,7 +54,7 @@ function AdminStudents() {
   const allStudents = useMemo(() => students.data ?? [], [students.data]);
   const years = useMemo(
     () =>
-      [...new Set(allStudents.map((s) => s.school_year).filter((y): y is string => !!y))]
+      [...new Set(allStudents.flatMap((s) => s.years ?? [s.school_year]).filter((y): y is string => !!y))]
         .sort()
         .reverse(),
     [allStudents],
@@ -79,7 +81,7 @@ function AdminStudents() {
           yearFilter !== "" &&
           yearFilter !== "archived" &&
           yearFilter !== "*" &&
-          s.school_year !== yearFilter
+          !(s.years ?? [s.school_year]).includes(yearFilter)
         )
           return false;
         return (

@@ -65,7 +65,7 @@ class ReportController extends Controller
         asort($natures);
 
         return response()->json([
-            'school_year' => SchoolContext::activeYear(),
+            'school_year' => SchoolContext::viewYear(),
             'nature' => $nature,
             'natures' => collect($natures)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values()->all(),
             'rows' => $rows,

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { getViewYear } from '@/lib/viewYear'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, ChevronDown, ChevronRight, ClipboardList, Download, Plus, Printer, Users, X, XCircle } from 'lucide-react'
@@ -53,7 +54,8 @@ function AdminPayments() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [nature, setNature] = useState('')
-  const [year, setYear] = useState('')
+  // Année consultée dans l'en-tête : filtre par défaut sur cette année.
+  const [year, setYear] = useState(() => getViewYear() ?? '')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [grouped, setGrouped] = useState(false)

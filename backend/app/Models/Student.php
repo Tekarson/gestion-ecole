@@ -61,6 +61,13 @@ class Student extends Model
      */
     public function scopeEnrolled(Builder $query): Builder
     {
+        // Année consultée autre que l'active : les élèves inscrits cette année-là.
+        if (SchoolContext::viewingArchive()) {
+            $year = SchoolContext::viewYear();
+
+            return $query->whereHas('enrollments', fn (Builder $q) => $q->where('school_year', $year));
+        }
+
         return $query->where('status', 'active')->where('school_year', SchoolContext::activeYear());
     }
 

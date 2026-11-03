@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate, Outlet } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ClipboardList,
   FileBarChart,
@@ -15,7 +15,8 @@ import { hasToken } from '@/lib/session'
 import { refsQuery, useLogoutMutation, whoamiQuery } from '@/lib/data'
 import { isBackOfficeRole, roleLabel, can } from '@/lib/fees'
 import { AppLayout, type NavItem } from '@/components/AppLayout'
-import { Button } from '@/components/ui'
+import { Button, Select } from '@/components/ui'
+import { setViewYear, useViewYear } from '@/lib/viewYear'
 
 export const Route = createFileRoute('/admin')({
   component: AdminLayout,
@@ -25,6 +26,19 @@ function AdminLayout() {
   const whoami = useQuery(whoamiQuery)
   const refs = useQuery(refsQuery)
   const logout = useLogoutMutation()
+  const queryClient = useQueryClient()
+  const storedYear = useViewYear()
+  const activeYear = refs.data?.school.year ?? ''
+  const years = refs.data?.school.years ?? []
+  // Année consultée : une année connue autre que l'active, sinon l'année active.
+  const viewYear = storedYear && storedYear !== activeYear && years.includes(storedYear) ? storedYear : null
+  const shownYear = viewYear ?? activeYear
+
+  function switchYear(year: string) {
+    setViewYear(year === activeYear ? null : year)
+    // Recharge toutes les données pour l'année choisie.
+    void queryClient.resetQueries()
+  }
 
   if (!hasToken()) {
     return <Navigate to="/auth" />
@@ -86,7 +100,31 @@ function AdminLayout() {
     <AppLayout
       brand="NTSHIK"
       appLabel="Administration"
-      year={refs.data?.school.year}
+      year={shownYear}
+      yearSlot={
+        years.length > 1 ? (
+          <Select
+            value={shownYear}
+            onChange={(e) => switchYear(e.target.value)}
+            aria-label="Année scolaire affichée"
+            className={`w-auto shrink-0 ${viewYear ? 'border-amber-300 bg-amber-50 text-amber-900' : ''}`}
+            options={years.map((y) => ({ value: y, label: `Année ${y}${y === activeYear ? ' (active)' : ''}` }))}
+          />
+        ) : undefined
+      }
+      banner={
+        viewYear ? (
+          <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span>
+              Vous consultez l’année <strong>{viewYear}</strong> : élèves, paiements, soldes et rapports de cette
+              année. Les nouveaux enregistrements vont toujours dans l’année active ({activeYear}).
+            </span>
+            <Button size="sm" variant="subtle" onClick={() => switchYear(activeYear)}>
+              Revenir à {activeYear}
+            </Button>
+          </div>
+        ) : undefined
+      }
       nav={nav}
       headerTitle={
         <div>
@@ -104,7 +142,8 @@ function AdminLayout() {
       onLogout={() => logout.mutate()}
       logoutBusy={logout.isPending}
     >
-      <Outlet />
+      {/* Remonte la page à chaque changement d'année (filtres remis à cette année). */}
+      <Outlet key={shownYear} />
     </AppLayout>
   )
 }

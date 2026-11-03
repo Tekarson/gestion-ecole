@@ -16,6 +16,10 @@ interface AppLayoutProps {
   brand: string
   appLabel: string
   year?: string
+  /** Remplace l'affichage de l'année dans l'en-tête (ex. sélecteur d'année). */
+  yearSlot?: ReactNode
+  /** Bandeau affiché au-dessus du contenu. */
+  banner?: ReactNode
   nav: NavItem[]
   user?: { name: string; sub?: string }
   headerTitle: ReactNode
@@ -29,6 +33,8 @@ export function AppLayout({
   brand,
   appLabel,
   year,
+  yearSlot,
+  banner,
   nav,
   user,
   headerTitle,
@@ -99,11 +105,12 @@ export function AppLayout({
                 <GraduationCap className="size-5 text-white" />
               </div>
               <div className="min-w-0">{headerTitle}</div>
-              {year && (
-                <span className="chip hidden shrink-0 border border-slate-200 bg-slate-50 text-slate-600 xl:inline-flex">
-                  Année scolaire {year}
-                </span>
-              )}
+              {yearSlot ??
+                (year && (
+                  <span className="chip hidden shrink-0 border border-slate-200 bg-slate-50 text-slate-600 xl:inline-flex">
+                    Année scolaire {year}
+                  </span>
+                ))}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {headerRight}
@@ -125,6 +132,7 @@ export function AppLayout({
         </header>
 
         <main className="glass-scroll mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {banner && <div className="mb-5">{banner}</div>}
           {children}
         </main>
       </div>

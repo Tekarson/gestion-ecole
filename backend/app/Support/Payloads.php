@@ -69,6 +69,10 @@ class Payloads
             'id' => 'school',
             'name' => config('services.school.name'),
             'year' => SchoolContext::activeYear(),
+            // Années consultables depuis l'en-tête (la plus récente d'abord).
+            'years' => \Illuminate\Support\Facades\Schema::hasTable('school_years')
+                ? \App\Models\SchoolYear::orderByDesc('name')->pluck('name')->all()
+                : [],
         ];
     }
 
@@ -159,6 +163,10 @@ class Payloads
             'status' => $student->status,
             'school_year' => $student->school_year,
             'enrolled' => $student->isEnrolled(),
+            // Toutes les années où l'élève a été inscrit (historique).
+            'years' => $student->relationLoaded('enrollments')
+                ? $student->enrollments->pluck('school_year')->unique()->sort()->values()->all()
+                : array_filter([$student->school_year]),
             'is_exempt' => (bool) $student->is_exempt,
             'is_teacher_child' => (bool) $student->is_teacher_child,
             'is_entitled' => (bool) $student->is_entitled,

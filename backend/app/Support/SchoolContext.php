@@ -40,6 +40,34 @@ class SchoolContext
         app()->forgetInstance(self::MEMO);
     }
 
+    /** Clé de l'année consultée (lecture seule), propre à la requête. */
+    private const VIEW = 'school.view_year';
+
+    /**
+     * Année dont on affiche les chiffres : l'année active, ou une autre année
+     * choisie dans l'en-tête (consultation, requêtes GET uniquement).
+     */
+    public static function viewYear(): string
+    {
+        return app()->bound(self::VIEW) ? (string) app(self::VIEW) : self::activeYear();
+    }
+
+    public static function setViewYear(?string $year): void
+    {
+        if ($year === null || $year === self::activeYear()) {
+            app()->forgetInstance(self::VIEW);
+
+            return;
+        }
+        app()->instance(self::VIEW, $year);
+    }
+
+    /** Vrai quand on consulte une autre année que l'année active. */
+    public static function viewingArchive(): bool
+    {
+        return self::viewYear() !== self::activeYear();
+    }
+
     public static function currentTerm(): int
     {
         $term = Setting::get('current_term');

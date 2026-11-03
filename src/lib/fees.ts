@@ -48,6 +48,8 @@ export interface School {
   id: string
   name: string
   year: string
+  /** Années consultables (la plus récente d'abord). */
+  years?: string[]
 }
 
 export interface ClassRow {
@@ -349,6 +351,8 @@ export interface AdminStudentRow {
   matricule: string
   status: 'active' | 'inactive'
   school_year?: string | null
+  /** Années où l'élève a été inscrit. */
+  years?: string[]
   enrolled?: boolean
   is_exempt: boolean
   is_teacher_child?: boolean

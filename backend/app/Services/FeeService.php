@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\FeeSetting;
 use App\Models\Family;
 use App\Models\Payment;
+use App\Models\SchoolClass;
+use App\Models\SchoolYear;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\TermPeriod;
@@ -93,9 +95,9 @@ class FeeService
         ?Collection $feeSettings = null,
         ?Collection $periods = null
     ): array {
-        $class = $student->schoolClass;
+        $class = $this->classFor($student);
         $payments ??= $student->payments;
-        $feeSettings ??= FeeSetting::all();
+        $feeSettings ??= $this->feeSettings();
         $periods ??= TermPeriod::orderBy('term')->get();
 
         $exempt = $this->studentIsExempt($student);
@@ -201,7 +203,7 @@ class FeeService
         $children = [];
         $exemptCount = 0;
 
-        $feeSettings = FeeSetting::all();
+        $feeSettings = $this->feeSettings();
         $periods = TermPeriod::orderBy('term')->get();
         foreach ($students as $student) {
             $finance = $this->studentFinance($student, $student->payments, $feeSettings, $periods);
@@ -229,7 +231,7 @@ class FeeService
 
         $totalPaid = round($family->payments()
             ->where('status', 'confirmed')
-            ->where(fn ($q) => $q->where('school_year', SchoolContext::activeYear())->orWhereNull('school_year'))
+            ->where(fn ($q) => $this->scopeYear($q))
             ->sum('amount') * 100) / 100;
 
         // Per child, the family discount is shared proportionally to his/her minerval.
@@ -352,16 +354,16 @@ class FeeService
      */
     public function natureRemaining(Student $student, string $nature): ?float
     {
-        $class = $student->schoolClass;
+        $class = $this->classFor($student);
         $payments = Payment::where('student_id', $student->id)
             ->where('status', 'confirmed')
-            ->where(fn ($q) => $q->where('school_year', SchoolContext::activeYear())->orWhereNull('school_year'))
+            ->where(fn ($q) => $this->scopeYear($q))
             ->get();
         $grouped = $this->groupPaidByNature($payments);
 
         $due = null;
         if (in_array($nature, [...self::ENROLLMENT_NATURES, ...self::FIXED_NATURES, ...self::OTHER_NATURES], true)) {
-            $setting = FeeSetting::where('label', $nature)->first();
+            $setting = $this->feeSettings()->firstWhere('label', $nature);
             $due = $setting ? (float) $setting->amount : null;
             if ($due !== null && in_array($nature, self::ENROLLMENT_NATURES, true) && $student->is_teacher_child) {
                 $due = 0.0;
@@ -398,6 +400,81 @@ class FeeService
         return $siblings->count() >= 6 && (string) $siblings->last()->id === (string) $student->id;
     }
 
+    /**
+     * Paiements de l'année affichée ; ceux sans année comptent pour l'année active.
+     */
+    public function scopeYear($query)
+    {
+        $query->where('school_year', SchoolContext::viewYear());
+        if (! SchoolContext::viewingArchive()) {
+            $query->orWhereNull('school_year');
+        }
+
+        return $query;
+    }
+
+    /**
+     * Frais de l'année affichée : ceux en vigueur, ou ceux archivés dans
+     * `school_years.tariffs` quand on consulte une autre année.
+     */
+    public function feeSettings(): Collection
+    {
+        $fees = FeeSetting::all();
+        $tariffs = $this->archivedTariffs();
+        if ($tariffs === null) {
+            return $fees;
+        }
+
+        return $fees->map(function (FeeSetting $fee) use ($tariffs) {
+            $copy = clone $fee;
+            $copy->amount = (float) ($tariffs['fees'][$fee->label] ?? 0.0);
+
+            return $copy;
+        });
+    }
+
+    /**
+     * Classe de l'élève pour l'année affichée, avec le minerval et les livres
+     * de cette année-là.
+     */
+    public function classFor(Student $student): ?SchoolClass
+    {
+        if (! SchoolContext::viewingArchive()) {
+            return $student->schoolClass;
+        }
+
+        $classId = $student->enrollments()->where('school_year', SchoolContext::viewYear())->value('class_id');
+        $class = $classId ? SchoolClass::find($classId) : null;
+        $values = $this->archivedTariffs()['classes'][(string) $classId] ?? null;
+        if ($class && is_array($values)) {
+            foreach (['tranche1', 'tranche2', 'tranche3', 'books'] as $key) {
+                if (array_key_exists($key, $values)) {
+                    $class->{$key} = $values[$key];
+                }
+            }
+        }
+
+        return $class;
+    }
+
+    /** @var array<string, array|null> */
+    protected array $tariffsCache = [];
+
+    /** Barèmes archivés de l'année consultée (null pour l'année active). */
+    protected function archivedTariffs(): ?array
+    {
+        if (! SchoolContext::viewingArchive()) {
+            return null;
+        }
+        $year = SchoolContext::viewYear();
+        if (! array_key_exists($year, $this->tariffsCache)) {
+            $tariffs = SchoolYear::where('name', $year)->value('tariffs');
+            $this->tariffsCache[$year] = is_string($tariffs) ? json_decode($tariffs, true) : $tariffs;
+        }
+
+        return $this->tariffsCache[$year] ?? ['fees' => [], 'classes' => []];
+    }
+
     protected function sumFees(Collection $feeSettings, array $natures): float
     {
         return (float) $feeSettings->whereIn('label', $natures)->sum('amount');
@@ -405,14 +482,16 @@ class FeeService
 
     protected function groupPaidByNature(Collection $payments): array
     {
-        $year = SchoolContext::activeYear();
+        $year = SchoolContext::viewYear();
+        $archive = SchoolContext::viewingArchive();
         $grouped = [];
         foreach ($payments as $payment) {
             if ((string) $payment->status !== 'confirmed') {
                 continue;
             }
-            // Seuls les paiements de l'année active comptent (les autres sont archivés).
-            if ($payment->school_year !== null && (string) $payment->school_year !== $year) {
+            // Seuls les paiements de l'année affichée comptent (sans année = année active).
+            $paymentYear = $payment->school_year !== null ? (string) $payment->school_year : null;
+            if ($paymentYear === null ? $archive : $paymentYear !== $year) {
                 continue;
             }
             $nature = $payment->category;

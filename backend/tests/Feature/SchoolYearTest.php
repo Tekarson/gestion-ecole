@@ -124,6 +124,51 @@ class SchoolYearTest extends TestCase
         $this->assertSame(200.0, $finance['enrollmentDue']);
     }
 
+    public function testViewingPastYearShowsItsStudentsPaymentsAndTariffs(): void
+    {
+        Payment::create([
+            'reference' => 'REC-2026-000001',
+            'family_id' => $this->student->family_id,
+            'student_id' => $this->student->id,
+            'amount' => 200,
+            'method' => 'especes',
+            'date' => now(),
+            'category' => 'inscription',
+            'status' => 'confirmed',
+            'school_year' => '2026-2027',
+        ]);
+
+        // Nouvelle année avec un autre tarif ; l'élève n'y est pas réinscrit.
+        $this->withToken($this->token)->postJson('/api/v1/admin/school-years', ['name' => '2027-2028', 'activate' => true])->assertCreated();
+        FeeSetting::where('label', 'inscription')->update(['amount' => 250]);
+        (new \App\Services\SchoolYearService)->syncActiveTariffs();
+        SchoolContext::forget();
+
+        $this->withToken($this->token)
+            ->getJson('/api/v1/admin/reports/solvency?nature=inscription')
+            ->assertOk()
+            ->assertJsonPath('school_year', '2027-2028')
+            ->assertJsonCount(0, 'rows');
+
+        $this->withToken($this->token)
+            ->withHeader('X-School-Year', '2026-2027')
+            ->getJson('/api/v1/admin/reports/solvency?nature=inscription')
+            ->assertOk()
+            ->assertJsonPath('school_year', '2026-2027')
+            ->assertJsonPath('rows.0.due', 200)
+            ->assertJsonPath('rows.0.paid', 200)
+            ->assertJsonPath('rows.0.solvent', true);
+
+        // Tableau de bord de 2026-2027 : l'élève et son paiement y figurent.
+        SchoolContext::setViewYear(null);
+        $this->withToken($this->token)
+            ->withHeader('X-School-Year', '2026-2027')
+            ->getJson('/api/v1/admin/dashboard')
+            ->assertOk()
+            ->assertJsonPath('stats.studentCount', 1)
+            ->assertJsonPath('stats.totalPaid', 200);
+    }
+
     public function testYearNameMustBeWellFormed(): void
     {
         $this->withToken($this->token)
